@@ -162,3 +162,5 @@ cython_debug/
 #.idea/
 
 error.*.log
+notebooks/semantic_search/output.json
+notebooks/semantic_search/config.py
