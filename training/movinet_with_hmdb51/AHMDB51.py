@@ -2,7 +2,7 @@ from typing import Any, Callable, Dict, Optional
 from aperturedb.Videos import Videos
 from aperturedb.CommonLibrary import create_connector, execute_query
 import torchvision
-import AVideoClips
+from AVideoClips import AVideoClips
 
 
 def get_videos(train:bool, split:int) -> Videos:

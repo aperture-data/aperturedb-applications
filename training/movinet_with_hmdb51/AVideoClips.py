@@ -8,6 +8,7 @@ from torch.utils.data.dataloader import DataLoader
 import torch
 
 from aperturedb.Videos import Videos
+from tqdm import tqdm
 
 class _VideoTimestampsDataset:
     """
