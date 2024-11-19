@@ -4,6 +4,7 @@ import subprocess
 from aperturedb.ParallelLoader import ParallelLoader
 from aperturedb.QueryGenerator import QueryGenerator
 from aperturedb.CommonLibrary import create_connector
+from aperturedb.Utils import Utils
 
 
 class TreeIngest(QueryGenerator):
@@ -40,7 +41,6 @@ class TreeIngest(QueryGenerator):
             p = subprocess.Popen(
                 f"ffmpeg -i '{file_path}' -vcodec libx264 -acodec aac '{dest_path}' 1> /dev/null 2>/dev/null",
                 shell=True,
-                text=True
             )
             out, err = p.communicate()
             if out or err:
@@ -64,13 +64,7 @@ class TreeIngest(QueryGenerator):
             },
             {
                 "AddVideo": {
-                    "connect": {
-                        "ref": 1,
-                        "class": "IsInSplit",
-                        "properties":{
-                            "type": code
-                        }
-                    },
+                    "_ref": 2,
                     "properties": {
                         "name": os.path.basename(dest_path),
                         "category": category
@@ -79,6 +73,16 @@ class TreeIngest(QueryGenerator):
                         "name": ["==", os.path.basename(dest_path)]
                     }
                 }
+            },
+            {
+                "AddConnection":{
+                    "class": "IsInSplit",
+                    "src": 2,
+                    "dst": 1,
+                    "properties": {
+                        "type": code
+                    },
+                }
             }
         ]
         buffer = None
@@ -86,14 +90,22 @@ class TreeIngest(QueryGenerator):
             buffer = instream.read()
         return query, [buffer]
 
-generator = TreeIngest("input", "splits/testTrainMulti_7030_splits")
-print(generator)
+if __name__ == "__main__":
 
-# Create a client.
-client = create_connector()
 
-# Create a loader
-loader = ParallelLoader(client=client, dry_run=False)
 
-# Ingest the data
-loader.ingest(generator=generator, batchsize=1, numthreads=8, stats=True)
+    generator = TreeIngest("input/categories", "splits/testTrainMulti_7030_splits")
+    print(generator)
+
+    # Create a client.
+    client = create_connector()
+
+    utils = Utils(client)
+    utils.create_entity_index("Split", "id")
+    utils.create_entity_index("Video", "name")
+
+    # Create a loader
+    loader = ParallelLoader(client=client, dry_run=False)
+
+    # Ingest the data
+    loader.ingest(generator=generator, batchsize=1, numthreads=1, stats=True)
