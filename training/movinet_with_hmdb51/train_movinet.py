@@ -192,8 +192,10 @@ def get_videos(train:bool, split:int) -> Videos:
     }]
     _, r, b = execute_query(client, query, [])
 
+
     videos = Videos(client=client, response=r[1]["FindVideo"]["entities"])
     videos.blobs = True
+    print(f"Retrieved {len(videos)} videos")
     return videos
 
 class AHMDB51(torchvision.datasets.HMDB51):
@@ -486,13 +488,21 @@ def train(train_loader, test_loader):
 app = Typer()
 
 @app.command()
-def inference():
-    pass
+def inference(use_aperturedb:bool):
+    train_loader, test_loader = get_data_loaders(use_aperturedb=use_aperturedb)
+    print(test_loader.dataset.ci)
 
 @app.command()
 def training(use_aperturedb:bool):
     train_loader, test_loader = get_data_loaders(use_aperturedb=use_aperturedb)
     train(train_loader=train_loader, test_loader=test_loader)
+    classes = test_loader.dataset.ci
+    rc = {v:k for k,v in classes.items()}
+
+    # Preserve the classes to index mapping for this model.
+    import json
+    with open("classes.json", "w") as out:
+        json.dump(rc, out, indent=2)
 
 if __name__ == "__main__":
    app()
