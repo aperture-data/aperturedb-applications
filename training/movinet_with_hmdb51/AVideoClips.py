@@ -4,6 +4,7 @@ from torchvision.datasets.video_utils import read_video_timestamps
 from torchvision.io.video import read_video
 import tempfile
 import os
+import shutil
 from torch.utils.data.dataloader import DataLoader
 import torch
 
@@ -23,6 +24,9 @@ class _VideoTimestampsDataset:
         self._tmp_path = "scratch"
         if os.path.exists(self._tmp_path) and os.path.isdir(self._tmp_path):
             pass
+        else:
+            shutil.rmtree(self._tmp_path, ignore_errors=True)
+            os.makedirs(self._tmp_path)
 
 
     def __len__(self) -> int:
