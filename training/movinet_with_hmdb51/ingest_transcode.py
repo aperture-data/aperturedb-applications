@@ -29,7 +29,7 @@ class TreeIngest(QueryGenerator):
         print("processed")
 
     def __repr__(self) -> str:
-        return f"A collection of {len(self)} Files"
+        return f"A collection of {len(self)} smaples"
 
     def __len__(self):
         return len(self._items)
@@ -49,6 +49,8 @@ class TreeIngest(QueryGenerator):
                     print(f"Error transcoding {file_path}")
                     return None
         category = file_path.split("/")[-2]
+        video_uid = os.path.basename(dest_path)
+        connection_uid  = f"{os.path.basename(dest_path)}_{split}_{code}"
         query = [
             {
                 "AddEntity": {
@@ -66,11 +68,11 @@ class TreeIngest(QueryGenerator):
                 "AddVideo": {
                     "_ref": 2,
                     "properties": {
-                        "name": os.path.basename(dest_path),
+                        "name": video_uid,
                         "category": category
                     },
                     "if_not_found": {
-                        "name": ["==", os.path.basename(dest_path)]
+                        "name": ["==", video_uid]
                     }
                 }
             },
@@ -80,8 +82,12 @@ class TreeIngest(QueryGenerator):
                     "src": 2,
                     "dst": 1,
                     "properties": {
-                        "type": code
+                        "type": code,
+                        "id": connection_uid
                     },
+                    "if_not_found": {
+                        "id": ["==", connection_uid]
+                    }
                 }
             }
         ]
@@ -101,11 +107,12 @@ if __name__ == "__main__":
     client = create_connector()
 
     utils = Utils(client)
-    utils.create_entity_index("Split", "id")
-    utils.create_entity_index("Video", "name")
+    assert utils.create_entity_index("Split", "id"), "Failed to create index for Split"
+    assert utils.create_entity_index("_Video", "name"), "Failed to create index for _Video"
+    assert utils.create_connection_index("IsInSplit", "id"), "Failed to create index for IsInSplit"
 
     # Create a loader
     loader = ParallelLoader(client=client, dry_run=False)
 
     # Ingest the data
-    loader.ingest(generator=generator, batchsize=1, numthreads=1, stats=True)
+    loader.ingest(generator=generator, batchsize=1, stats=True)
