@@ -12,8 +12,11 @@ from movinets.config import _C
 
 from torch.utils.data.dataloader import DataLoader
 from typer import Typer
-import AHMDB51
+from AHMDB51 import AHMDB51
 
+
+NUM_WORKERS = 0 # Number of workers for data loading, 0 = main process.
+N_EPOCHS = 1
 
 def get_common():
     """
@@ -21,7 +24,7 @@ def get_common():
     Applies to the training and data loading sections.
     """
     torch.manual_seed(97)
-    num_frames = 16 # 16
+    num_frames = 16
     clip_steps = 2
     Bs_Train = 16
     Bs_Test = 16
@@ -64,7 +67,7 @@ def get_data_sets():
     num_frames, clip_steps, Bs_Train, Bs_Test, transform, transform_test = get_common()
 
     hmdb51_train = AHMDB51(
-        num_workers=1,
+        num_workers=NUM_WORKERS,
         frame_rate=5,
         frames_per_clip=num_frames,
         step_between_clips=clip_steps,
@@ -72,7 +75,7 @@ def get_data_sets():
         transform=transform
         )
     hmdb51_test = AHMDB51(
-        num_workers=1,
+        num_workers=NUM_WORKERS,
         frame_rate=5,
         frames_per_clip=num_frames,
         step_between_clips=clip_steps,
@@ -93,8 +96,6 @@ def get_data_loaders(use_aperturedb: bool=False):
         hmdb51_train, hmdb51_test = get_local_data_sets()
     else:
         hmdb51_train, hmdb51_test = get_data_sets()
-
-
 
     train_loader = DataLoader(hmdb51_train, batch_size=Bs_Train, shuffle=True)
     test_loader = DataLoader(hmdb51_test, batch_size=Bs_Test, shuffle=False)
@@ -221,7 +222,7 @@ def evaluate_stream(model, data_load, loss_val, n_clips = 2, n_clip_frames=8):
           '{:4.2f}'.format(100.0 * csamp / samples) + '%)\n')
 
 def train(train_loader, test_loader):
-    N_EPOCHS = 1
+
 
     # Use the original movinet based on Kinetics400 dataset when we get pretrained.
     model = MoViNet(_C.MODEL.MoViNetA0, causal = False, pretrained = True )
@@ -243,7 +244,8 @@ def train(train_loader, test_loader):
         }, f'movinet_{epoch}.pth')
 
         # Save every epoch and can compare across epochs too. Right now we stop at 1
-        # HMDB51 has 6000 clips with 51 classes.
+        # HMDB51 has ~6000 clips with 51 classes. It has 3 splits. A split is a combination of train and test.
+        # We use the first split for this example.
         # This trains on a split based on fold value selected when we load dataset
         torch.save(model, f'movinet_hmdb51_{epoch}.pth')
 
