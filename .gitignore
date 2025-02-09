@@ -164,3 +164,6 @@ cython_debug/
 error.*.log
 notebooks/semantic_search/output.json
 notebooks/semantic_search/config.py
+
+training/movinet_with_hmdb51/input
+training/movinet_with_hmdb51/splits
