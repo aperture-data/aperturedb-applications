@@ -1,0 +1,13 @@
+{
+ "kind": "storage#objectFullContext",
+ "type": "CUSTOM",
+ "key": "google:annotation:face-detector-v1",
+ "value": "SUCCESS",
+ "createTime": "2026-09-18T19:29:47.762Z",
+ "updateTime": "2026-09-18T19:29:47.762Z",
+ "extendedData": {
+  "@type": "type.googleapis.com/google.protobuf.Struct",
+  "modelName": "face-detector",
+  "modelVersion": "v1"
+ }
+}

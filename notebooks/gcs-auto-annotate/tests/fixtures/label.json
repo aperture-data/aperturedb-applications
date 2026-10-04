@@ -1,0 +1,53 @@
+{
+ "kind": "storage#objectFullContext",
+ "type": "CUSTOM",
+ "key": "google:annotation:label-detector-v1",
+ "value": "SUCCESS",
+ "createTime": "2026-09-18T19:31:48.899Z",
+ "updateTime": "2026-09-18T19:31:48.899Z",
+ "extendedData": {
+  "@type": "type.googleapis.com/google.protobuf.Struct",
+  "labelAnnotationGroup": {
+   "labelAnnotations": [
+    {
+     "description": "Golfer",
+     "knowledgeGraphId": "/m/025smyp",
+     "score": 0.92753446,
+     "topicality": 0.08069217
+    },
+    {
+     "description": "Professional golfer",
+     "knowledgeGraphId": "/m/07npwc",
+     "score": 0.8898387,
+     "topicality": 0.05230449
+    },
+    {
+     "description": "Recreation",
+     "knowledgeGraphId": "/m/06bm2",
+     "score": 0.8718725,
+     "topicality": 0.0005016301
+    },
+    {
+     "description": "Golf equipment",
+     "knowledgeGraphId": "/m/02w7b0t",
+     "score": 0.86589974,
+     "topicality": 0.0020018904
+    },
+    {
+     "description": "Golf club",
+     "knowledgeGraphId": "/m/03gzqq",
+     "score": 0.8458285,
+     "topicality": 0.0010698712
+    },
+    {
+     "description": "Golf",
+     "knowledgeGraphId": "/m/037hz",
+     "score": 0.8444622,
+     "topicality": 0.19114774
+    }
+   ]
+  },
+  "modelName": "label-detector",
+  "modelVersion": "v1"
+ }
+}

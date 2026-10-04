@@ -1,0 +1,167 @@
+{
+ "kind": "storage#objectFullContext",
+ "type": "CUSTOM",
+ "key": "google:annotation:object-detector-v1",
+ "value": "SUCCESS",
+ "createTime": "2026-09-18T19:30:00.500Z",
+ "updateTime": "2026-09-18T19:30:00.500Z",
+ "extendedData": {
+  "@type": "type.googleapis.com/google.protobuf.Struct",
+  "modelName": "object-detector",
+  "modelVersion": "v1",
+  "objectAnnotationGroup": {
+   "objectAnnotations": [
+    {
+     "boundingPoly": {
+      "normalizedVertices": [
+       {
+        "x": 0.26171875,
+        "y": 0.82421875
+       },
+       {
+        "x": 0.93359375,
+        "y": 0.82421875
+       },
+       {
+        "x": 0.93359375,
+        "y": 0.9140625
+       },
+       {
+        "x": 0.26171875,
+        "y": 0.9140625
+       }
+      ]
+     },
+     "knowledgeGraphId": "/m/0dwx7",
+     "name": "Logo",
+     "score": 0.43237695
+    },
+    {
+     "boundingPoly": {
+      "normalizedVertices": [
+       {
+        "x": 0.087890625,
+        "y": 0.025390625
+       },
+       {
+        "x": 1,
+        "y": 0.025390625
+       },
+       {
+        "x": 1,
+        "y": 0.8984375
+       },
+       {
+        "x": 0.087890625,
+        "y": 0.8984375
+       }
+      ]
+     },
+     "knowledgeGraphId": "/m/0dwx7",
+     "name": "Logo",
+     "score": 0.13073981
+    },
+    {
+     "boundingPoly": {
+      "normalizedVertices": [
+       {
+        "x": 0.087890625,
+        "y": 0.025390625
+       },
+       {
+        "x": 1,
+        "y": 0.025390625
+       },
+       {
+        "x": 1,
+        "y": 0.8984375
+       },
+       {
+        "x": 0.087890625,
+        "y": 0.8984375
+       }
+      ]
+     },
+     "knowledgeGraphId": "/m/01g317",
+     "name": "Person",
+     "score": 0.10267105
+    },
+    {
+     "boundingPoly": {
+      "normalizedVertices": [
+       {
+        "x": 0.087890625,
+        "y": 0.025390625
+       },
+       {
+        "x": 1,
+        "y": 0.025390625
+       },
+       {
+        "x": 1,
+        "y": 0.8984375
+       },
+       {
+        "x": 0.087890625,
+        "y": 0.8984375
+       }
+      ]
+     },
+     "knowledgeGraphId": "/m/01n5jq",
+     "name": "Poster",
+     "score": 0.057313822
+    },
+    {
+     "boundingPoly": {
+      "normalizedVertices": [
+       {
+        "x": 0.087890625,
+        "y": 0.025390625
+       },
+       {
+        "x": 1,
+        "y": 0.025390625
+       },
+       {
+        "x": 1,
+        "y": 0.8984375
+       },
+       {
+        "x": 0.087890625,
+        "y": 0.8984375
+       }
+      ]
+     },
+     "knowledgeGraphId": "/m/09j2d",
+     "name": "Clothing",
+     "score": 0.0155397495
+    },
+    {
+     "boundingPoly": {
+      "normalizedVertices": [
+       {
+        "x": 0.119628906,
+        "y": 0.18652344
+       },
+       {
+        "x": 0.98828125,
+        "y": 0.18652344
+       },
+       {
+        "x": 0.98828125,
+        "y": 0.8828125
+       },
+       {
+        "x": 0.119628906,
+        "y": 0.8828125
+       }
+      ]
+     },
+     "knowledgeGraphId": "/m/01llx7",
+     "name": "Bracelet",
+     "score": 0.010456665
+    }
+   ]
+  }
+ }
+}

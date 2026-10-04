@@ -1,0 +1,20 @@
+{
+ "name": "tmdb/posters/9614.jpg",
+ "generation": "1",
+ "contexts": {
+  "custom": {
+   "google:annotation:label-detector-v1": {
+    "value": "SUCCESS"
+   },
+   "google:annotation:face-detector-v1": {
+    "value": "SUCCESS"
+   },
+   "google:annotation:object-detector-v1": {
+    "value": "FAILED"
+   },
+   "other:thing": {
+    "value": "SUCCESS"
+   }
+  }
+ }
+}

@@ -1,0 +1,17 @@
+{
+ "kind": "storage#objectFullContext",
+ "type": "CUSTOM",
+ "key": "google:annotation:content-safety-v1",
+ "value": "SUCCESS",
+ "createTime": "2026-09-18T19:30:03.290Z",
+ "updateTime": "2026-09-18T19:30:03.290Z",
+ "extendedData": {
+  "@type": "type.googleapis.com/google.protobuf.Struct",
+  "contentSafetyAnnotation": {
+   "adultContentLikelihood": "POSSIBLE",
+   "violentContentLikelihood": "UNLIKELY"
+  },
+  "modelName": "content-safety",
+  "modelVersion": "v1"
+ }
+}

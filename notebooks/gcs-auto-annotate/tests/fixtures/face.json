@@ -1,0 +1,133 @@
+{
+ "kind": "storage#objectFullContext",
+ "type": "CUSTOM",
+ "key": "google:annotation:face-detector-v1",
+ "value": "SUCCESS",
+ "createTime": "2026-09-18T19:31:48.899Z",
+ "updateTime": "2026-09-18T19:31:48.899Z",
+ "extendedData": {
+  "@type": "type.googleapis.com/google.protobuf.Struct",
+  "faceAnnotationGroup": {
+   "faceAnnotations": [
+    {
+     "angerProbability": 0.025301985,
+     "blurredProbability": 3.3104442e-07,
+     "boundingPoly": {
+      "normalizedVertices": [
+       {
+        "x": 0.427,
+        "y": 0.122666664
+       },
+       {
+        "x": 0.559,
+        "y": 0.122666664
+       },
+       {
+        "x": 0.559,
+        "y": 0.22533333
+       },
+       {
+        "x": 0.427,
+        "y": 0.22533333
+       }
+      ],
+      "vertices": [
+       {
+        "x": 427,
+        "y": 184
+       },
+       {
+        "x": 559,
+        "y": 184
+       },
+       {
+        "x": 559,
+        "y": 338
+       },
+       {
+        "x": 427,
+        "y": 338
+       }
+      ]
+     },
+     "detectionConfidence": 0.90625,
+     "faceDetectionBoundingPoly": {
+      "normalizedVertices": [
+       {
+        "x": 0.441,
+        "y": 0.14666666
+       },
+       {
+        "x": 0.548,
+        "y": 0.14666666
+       },
+       {
+        "x": 0.548,
+        "y": 0.218
+       },
+       {
+        "x": 0.441,
+        "y": 0.218
+       }
+      ],
+      "vertices": [
+       {
+        "x": 441,
+        "y": 220
+       },
+       {
+        "x": 548,
+        "y": 220
+       },
+       {
+        "x": 548,
+        "y": 327
+       },
+       {
+        "x": 441,
+        "y": 327
+       }
+      ]
+     },
+     "headwearProbability": 0.007044984,
+     "joyProbability": 0.014655501,
+     "landmarkingConfidence": 0.5730011,
+     "landmarks": [
+      {
+       "position": {
+        "x": 464.5926,
+        "y": 253.84122,
+        "z": 0.0010156631
+       },
+       "type": "LEFT_EYE"
+      },
+      {
+       "position": {
+        "x": 501.7586,
+        "y": 245.415,
+        "z": -9.814807
+       },
+       "type": "RIGHT_EYE"
+      },
+      {
+       "position": {
+        "x": 451.15405,
+        "y": 245.32744,
+        "z": 11.084238
+       },
+       "type": "LEFT_OF_LEFT_EYEBROW"
+      }
+     ],
+     "panAngle": -15.170638,
+     "rollAngle": -5.6140227,
+     "sorrowProbability": 0.12607718,
+     "surpriseProbability": 0.03833148,
+     "tiltAngle": 19.46675,
+     "underExposedProbability": 0.0006922928
+    }
+   ]
+  },
+  "modelName": "face-detector",
+  "modelVersion": "v1"
+ }
+}
