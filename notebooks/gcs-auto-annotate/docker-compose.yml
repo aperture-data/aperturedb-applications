@@ -1,0 +1,110 @@
+# Local ApertureDB Community Edition for the GCS auto-annotate demo.
+#
+# Default: ApertureDB CE + the Lenz TCP gateway (everything the scripts and notebook need).
+# Optional profiles:
+#   ui        the ApertureDB web UI (the UI image is not on public Docker Hub; you need
+#             access to it, or set WEBUI_IMAGE to an image you can pull)
+#   notebook  JupyterLab (public image) with this folder mounted
+#
+# IMPORTANT: the ApertureDB community edition image is licensed for evaluation and
+# development only. See https://www.aperturedata.io/docker-license
+#
+#   docker compose up -d                       # database + gateway
+#   docker compose --profile notebook up -d    # ... plus JupyterLab
+#   docker compose --profile ui up -d          # ... plus the web UI (if you have the image)
+#   docker compose down                        # stop (data preserved)
+#   docker compose down -v                     # stop and delete all data
+#
+# Endpoints (override host ports with env vars):
+#   APERTUREDB_PORT  (default 55557)  TCP endpoint used by the scripts and the adb CLI
+#   WEBUI_PORT       (default 8088)   web UI -> http://localhost:8088  (ui profile; admin / admin)
+#   WEBUI_IMAGE      web UI image     (default aperturedata/aperturedata-platform-web-private:latest)
+#   NOTEBOOK_PORT    (default 8899)   JupyterLab (notebook profile only)
+
+name: gcs-auto-annotate
+
+services:
+
+  aperturedb:
+    image: aperturedata/aperturedb-community:latest
+    restart: unless-stopped
+    environment:
+      ADB_MASTER_KEY: "${APERTUREDB_PASSWORD:-admin}"
+      ADB_FORCE_SSL: "false"
+    volumes:
+      - aperturedb_data:/aperturedb/db
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/55555'"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+      start_period: 5s
+
+  lenz:
+    image: aperturedata/lenz:latest
+    depends_on:
+      aperturedb:
+        condition: service_healthy
+    restart: unless-stopped
+    ports:
+      - "${APERTUREDB_PORT:-55557}:55551"
+    environment:
+      LNZ_TCP_PORT: 55551
+      LNZ_HTTP_PORT: 8080
+      LNZ_ADB_BACKENDS: '["aperturedb:55555"]'
+      LNZ_REPLICAS: 1
+      LNZ_ADB_MAX_CONCURRENCY: 48
+      LNZ_FORCE_SSL: "false"
+
+  webui:
+    profiles: ["ui"]
+    image: ${WEBUI_IMAGE:-aperturedata/aperturedata-platform-web-private:latest}
+    restart: unless-stopped
+    depends_on:
+      - lenz
+
+  nginx:
+    profiles: ["ui"]
+    image: nginx
+    restart: unless-stopped
+    depends_on:
+      - webui
+      - lenz
+    ports:
+      - "${WEBUI_PORT:-8088}:80"
+    configs:
+      - source: nginx.conf
+        target: /etc/nginx/conf.d/default.conf
+
+  notebook:
+    profiles: ["notebook"]
+    image: aperturedata/aperturedb-notebook
+    restart: unless-stopped
+    depends_on:
+      - lenz
+    ports:
+      - "${NOTEBOOK_PORT:-8899}:8888"
+    environment:
+      PASSWORD: "${NOTEBOOK_PASSWORD:-test}"   # JupyterLab login (the image's default is "test")
+      APERTUREDB_JSON: '{"host":"lenz","port":55551,"username":"admin","password":"${APERTUREDB_PASSWORD:-admin}","use_ssl":false}'
+    volumes:
+      - ./:/notebooks/gcs-auto-annotate
+    command: bash -c "adb config create gcs_local --host lenz --no-interactive --active; /start.sh"
+
+configs:
+  nginx.conf:
+    content: |
+      server {
+        listen 80;
+        client_max_body_size 256m;
+        location / {
+          proxy_pass http://webui;
+        }
+        location /api/ {
+          proxy_pass http://lenz:8080;
+        }
+      }
+
+volumes:
+  aperturedb_data:
+    driver: local

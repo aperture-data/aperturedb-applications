@@ -1,0 +1,7 @@
+aperturedb>=0.4.61
+google-cloud-storage>=3.0
+google-auth>=2.30
+requests>=2.31
+pillow>=10.0
+pandas>=2.0
+ipython>=8.0
