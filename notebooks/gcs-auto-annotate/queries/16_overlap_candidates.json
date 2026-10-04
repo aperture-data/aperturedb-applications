@@ -1,0 +1,36 @@
+[
+  {
+    "FindBoundingBox": {
+      "_ref": 1,
+      "with_label": "Logo"
+    }
+  },
+  {
+    "FindBoundingBox": {
+      "_ref": 2,
+      "with_label": "face"
+    }
+  },
+  {
+    "FindImage": {
+      "is_connected_to": {
+        "all": [
+          {
+            "ref": 1
+          },
+          {
+            "ref": 2
+          }
+        ]
+      },
+      "blobs": false,
+      "results": {
+        "list": [
+          "id",
+          "gcs_object_name"
+        ],
+        "limit": 500
+      }
+    }
+  }
+]

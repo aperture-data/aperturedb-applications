@@ -1,0 +1,17 @@
+[
+  {
+    "FindImage": {
+      "constraints": [
+        "all",
+        [
+          "$face_count",
+          "is_missing"
+        ]
+      ],
+      "blobs": false,
+      "results": {
+        "count": true
+      }
+    }
+  }
+]

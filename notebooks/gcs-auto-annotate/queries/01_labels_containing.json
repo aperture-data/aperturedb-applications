@@ -1,0 +1,37 @@
+[
+  {
+    "FindEntity": {
+      "_ref": 1,
+      "with_class": "GCSLabel",
+      "constraints": [
+        "all",
+        [
+          "$description",
+          "icontains",
+          "action"
+        ],
+        [
+          "$score",
+          ">=",
+          0.6
+        ]
+      ]
+    }
+  },
+  {
+    "FindImage": {
+      "is_connected_to": {
+        "ref": 1
+      },
+      "blobs": true,
+      "results": {
+        "list": [
+          "gcs_object_name",
+          "label_count",
+          "face_count"
+        ],
+        "limit": 12
+      }
+    }
+  }
+]

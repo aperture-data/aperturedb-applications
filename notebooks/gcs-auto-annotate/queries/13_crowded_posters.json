@@ -1,0 +1,32 @@
+[
+  {
+    "FindImage": {
+      "constraints": [
+        "all",
+        [
+          "$face_count",
+          ">=",
+          3
+        ],
+        [
+          "$object_count",
+          ">=",
+          5
+        ]
+      ],
+      "blobs": false,
+      "results": {
+        "list": [
+          "gcs_object_name",
+          "face_count",
+          "object_count"
+        ],
+        "limit": 12
+      },
+      "sort": {
+        "key": "face_count",
+        "order": "descending"
+      }
+    }
+  }
+]

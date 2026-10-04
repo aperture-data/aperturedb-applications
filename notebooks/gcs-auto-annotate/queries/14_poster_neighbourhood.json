@@ -1,0 +1,51 @@
+[
+  {
+    "FindImage": {
+      "_ref": 1,
+      "blobs": false,
+      "constraints": [
+        "all",
+        [
+          "$gcs_object_stem",
+          "==",
+          "9614"
+        ]
+      ],
+      "results": {
+        "all_properties": true
+      }
+    }
+  },
+  {
+    "FindEntity": {
+      "with_class": "GCSLabel",
+      "is_connected_to": {
+        "ref": 1
+      },
+      "results": {
+        "list": [
+          "description",
+          "score"
+        ],
+        "limit": 8
+      },
+      "sort": {
+        "key": "score",
+        "order": "descending"
+      }
+    }
+  },
+  {
+    "FindBoundingBox": {
+      "image_ref": 1,
+      "coordinates": true,
+      "results": {
+        "list": [
+          "_label",
+          "score",
+          "joy"
+        ]
+      }
+    }
+  }
+]

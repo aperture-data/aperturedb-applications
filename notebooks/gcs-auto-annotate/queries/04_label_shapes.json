@@ -1,0 +1,34 @@
+[
+  {
+    "FindEntity": {
+      "with_class": "GCSLabel",
+      "constraints": [
+        "all",
+        [
+          "any",
+          [
+            "$description",
+            "like",
+            "%ing"
+          ],
+          [
+            "$description",
+            "istarts_with",
+            "for "
+          ]
+        ]
+      ],
+      "results": {
+        "list": [
+          "description",
+          "score"
+        ],
+        "limit": 25
+      },
+      "sort": {
+        "key": "score",
+        "order": "descending"
+      }
+    }
+  }
+]

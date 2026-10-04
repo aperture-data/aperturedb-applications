@@ -1,0 +1,38 @@
+[
+  {
+    "FindBoundingBox": {
+      "with_label": "face",
+      "constraints": [
+        "all",
+        [
+          {
+            "add": [
+              "$joy",
+              "$surprise"
+            ]
+          },
+          ">",
+          0.85
+        ],
+        [
+          "$sorrow",
+          "<",
+          0.1
+        ]
+      ],
+      "results": {
+        "list": [
+          "image_id",
+          "joy",
+          "surprise",
+          "sorrow"
+        ],
+        "limit": 8
+      },
+      "sort": {
+        "key": "joy",
+        "order": "descending"
+      }
+    }
+  }
+]

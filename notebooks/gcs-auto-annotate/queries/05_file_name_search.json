@@ -1,0 +1,23 @@
+[
+  {
+    "FindImage": {
+      "constraints": [
+        "all",
+        [
+          "$gcs_object_name",
+          "starts_with",
+          "tmdb/posters/10"
+        ]
+      ],
+      "blobs": false,
+      "results": {
+        "list": [
+          "gcs_object_name",
+          "width",
+          "height"
+        ],
+        "limit": 20
+      }
+    }
+  }
+]

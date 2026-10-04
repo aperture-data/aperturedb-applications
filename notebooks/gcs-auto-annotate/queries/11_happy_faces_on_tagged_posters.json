@@ -1,0 +1,54 @@
+[
+  {
+    "FindEntity": {
+      "_ref": 1,
+      "with_class": "GCSLabel",
+      "constraints": [
+        "all",
+        [
+          "$description",
+          "icontains",
+          "film"
+        ]
+      ]
+    }
+  },
+  {
+    "FindImage": {
+      "_ref": 2,
+      "is_connected_to": {
+        "ref": 1
+      },
+      "blobs": false,
+      "results": {
+        "list": [
+          "gcs_object_name"
+        ],
+        "limit": 12
+      }
+    }
+  },
+  {
+    "FindBoundingBox": {
+      "image_ref": 2,
+      "with_label": "face",
+      "constraints": [
+        "$joy",
+        ">=",
+        0.3
+      ],
+      "results": {
+        "list": [
+          "image_id",
+          "joy",
+          "area_fraction"
+        ],
+        "limit": 12
+      },
+      "sort": {
+        "key": "joy",
+        "order": "descending"
+      }
+    }
+  }
+]

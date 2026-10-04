@@ -1,0 +1,31 @@
+[
+  {
+    "FindImage": {
+      "constraints": [
+        "all",
+        [
+          "any",
+          [
+            "$adult_content_rank",
+            ">=",
+            3
+          ],
+          [
+            "$violent_content_rank",
+            ">=",
+            3
+          ]
+        ]
+      ],
+      "blobs": false,
+      "results": {
+        "list": [
+          "gcs_object_name",
+          "adult_content_likelihood",
+          "violent_content_likelihood"
+        ],
+        "limit": 12
+      }
+    }
+  }
+]

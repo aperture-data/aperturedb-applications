@@ -1,0 +1,31 @@
+[
+  {
+    "FindBoundingBox": {
+      "_ref": 1,
+      "constraints": [
+        "all",
+        [
+          "$object_name",
+          "regex",
+          "(?i)^(man|woman|girl|boy)$"
+        ]
+      ]
+    }
+  },
+  {
+    "FindImage": {
+      "is_connected_to": {
+        "ref": 1
+      },
+      "blobs": false,
+      "results": {
+        "list": [
+          "gcs_object_name",
+          "object_count",
+          "face_count"
+        ],
+        "limit": 12
+      }
+    }
+  }
+]

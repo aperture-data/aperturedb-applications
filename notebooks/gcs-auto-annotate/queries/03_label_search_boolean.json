@@ -1,0 +1,48 @@
+[
+  {
+    "FindEntity": {
+      "with_class": "GCSLabel",
+      "constraints": [
+        "all",
+        [
+          "any",
+          [
+            "$description",
+            "icontains",
+            "action"
+          ],
+          [
+            "$description",
+            "icontains",
+            "fiction"
+          ]
+        ],
+        [
+          "not",
+          [
+            "$description",
+            "icontains",
+            "game"
+          ]
+        ],
+        [
+          "$score",
+          ">=",
+          0.6
+        ]
+      ],
+      "results": {
+        "list": [
+          "description",
+          "score",
+          "image_id"
+        ],
+        "limit": 25
+      },
+      "sort": {
+        "key": "score",
+        "order": "descending"
+      }
+    }
+  }
+]

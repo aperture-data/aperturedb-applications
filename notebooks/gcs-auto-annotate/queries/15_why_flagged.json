@@ -1,0 +1,55 @@
+[
+  {
+    "FindImage": {
+      "_ref": 1,
+      "blobs": false,
+      "constraints": [
+        "all",
+        [
+          "any",
+          [
+            "$adult_content_rank",
+            ">=",
+            3
+          ],
+          [
+            "$violent_content_rank",
+            ">=",
+            3
+          ]
+        ]
+      ],
+      "results": {
+        "list": [
+          "gcs_object_name"
+        ],
+        "limit": 5
+      }
+    }
+  },
+  {
+    "FindEntity": {
+      "with_class": "GCSLabel",
+      "is_connected_to": {
+        "ref": 1
+      },
+      "constraints": [
+        "$score",
+        ">=",
+        0.8
+      ],
+      "results": {
+        "list": [
+          "description",
+          "score",
+          "image_id"
+        ],
+        "limit": 30
+      },
+      "sort": {
+        "key": "score",
+        "order": "descending"
+      }
+    }
+  }
+]

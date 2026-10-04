@@ -1,0 +1,33 @@
+[
+  {
+    "FindBoundingBox": {
+      "with_label": "face",
+      "constraints": [
+        "all",
+        [
+          "$area_fraction",
+          ">=",
+          0.08
+        ],
+        [
+          "$detection_confidence",
+          ">=",
+          0.9
+        ]
+      ],
+      "blobs": false,
+      "results": {
+        "list": [
+          "image_id",
+          "area_fraction",
+          "detection_confidence"
+        ],
+        "limit": 8
+      },
+      "sort": {
+        "key": "area_fraction",
+        "order": "descending"
+      }
+    }
+  }
+]

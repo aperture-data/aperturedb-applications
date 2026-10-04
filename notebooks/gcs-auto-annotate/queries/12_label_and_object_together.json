@@ -1,0 +1,52 @@
+[
+  {
+    "FindEntity": {
+      "_ref": 1,
+      "with_class": "GCSLabel",
+      "constraints": [
+        "all",
+        [
+          "$description",
+          "icontains",
+          "clothing"
+        ]
+      ]
+    }
+  },
+  {
+    "FindBoundingBox": {
+      "_ref": 2,
+      "constraints": [
+        "all",
+        [
+          "$object_name",
+          "icontains",
+          "person"
+        ]
+      ]
+    }
+  },
+  {
+    "FindImage": {
+      "is_connected_to": {
+        "all": [
+          {
+            "ref": 1
+          },
+          {
+            "ref": 2
+          }
+        ]
+      },
+      "blobs": false,
+      "results": {
+        "list": [
+          "gcs_object_name",
+          "face_count",
+          "object_count"
+        ],
+        "limit": 12
+      }
+    }
+  }
+]

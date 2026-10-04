@@ -1,0 +1,300 @@
+"""The demo queries: one function per query, each returning a plain ApertureDB query (JSON).
+
+Used by the notebook (``queries.ipynb``), by ``validate.py`` (smoke test) and exported as JSON
+files for the web UI (``python queries.py --export``  ->  ``queries/``).
+
+What they show off that a SQL warehouse makes awkward:
+
+* **string search** - ``contains`` / ``icontains`` / ``starts_with`` / ``like`` / ``regex`` and
+  case-insensitive variants, backed by trigram indexes
+* **expressions** - ``["all", ["$joy", ">", "$sorrow"], [{"abs": "$pan_angle"}, "<", 20]]``:
+  compare properties with each other and apply functions, no client-side post-processing
+* **graph traversal** - label -> image -> faces in one request, images connected to *both* a
+  label and an object (``is_connected_to: {all: [...]}``)
+* **spatial** - ``RegionIoU`` between boxes produced by two different detectors
+* **pixels** - results can carry the image, or just the cropped region of a box
+
+``dataset`` scopes every query to one ingested folder (default: all data in the database).
+"""
+import argparse
+import json
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+
+
+def _scope(dataset):
+    return {"dataset_name": ["==", dataset]} if dataset else None
+
+
+def _all(*conditions):
+    return ["all", *[c for c in conditions if c]]
+
+
+def _ds(dataset):
+    """Array-expression condition limiting a find to one dataset (or nothing)."""
+    return ["$dataset_name", "==", dataset] if dataset else None
+
+
+# --------------------------------------------------------------------------- string search
+
+def labels_containing(term="action", min_score=0.6, dataset=None, images=True, limit=12):
+    """Posters carrying a label that contains ``term`` (any case) with decent confidence."""
+    return [
+        {"FindEntity": {"_ref": 1, "with_class": "GCSLabel",
+                        "constraints": _all(["$description", "icontains", term],
+                                            ["$score", ">=", min_score], _ds(dataset))}},
+        {"FindImage": {"is_connected_to": {"ref": 1}, "blobs": images,
+                       "results": {"list": ["gcs_object_name", "label_count", "face_count"],
+                                   "limit": limit}}},
+    ]
+
+
+def people_by_name(pattern="(?i)^(man|woman|girl|boy)$", dataset=None, images=False, limit=12):
+    """Posters with an object box whose name matches a regular expression (RE2, ``(?i)`` = any case)."""
+    return [
+        {"FindBoundingBox": {"_ref": 1,
+                             "constraints": _all(["$object_name", "regex", pattern], _ds(dataset))}},
+        {"FindImage": {"is_connected_to": {"ref": 1}, "blobs": images,
+                       "results": {"list": ["gcs_object_name", "object_count", "face_count"],
+                                   "limit": limit}}},
+    ]
+
+
+def label_search_boolean(include=("action", "fiction"), exclude=("game",), min_score=0.6,
+                         dataset=None, limit=25):
+    """Boolean text search: any of ``include`` words, none of ``exclude`` words, in label text."""
+    return [{"FindEntity": {
+        "with_class": "GCSLabel",
+        "constraints": _all(
+            ["any", *[["$description", "icontains", w] for w in include]],
+            *[["not", ["$description", "icontains", w]] for w in exclude],
+            ["$score", ">=", min_score], _ds(dataset)),
+        "results": {"list": ["description", "score", "image_id"], "limit": limit},
+        "sort": {"key": "score", "order": "descending"}}}]
+
+
+def label_shapes(dataset=None, limit=25):
+    """Pattern matching: labels ending in 'ing' (like) or starting with 'for ' (istarts_with)."""
+    return [{"FindEntity": {
+        "with_class": "GCSLabel",
+        "constraints": _all(["any", ["$description", "like", "%ing"],
+                             ["$description", "istarts_with", "for "]], _ds(dataset)),
+        "results": {"list": ["description", "score"], "limit": limit},
+        "sort": {"key": "score", "order": "descending"}}}]
+
+
+def file_name_search(prefix="tmdb/posters/10", dataset=None, limit=20):
+    """Prefix / substring search over object names (trigram-indexed)."""
+    return [{"FindImage": {
+        "constraints": _all(["$gcs_object_name", "starts_with", prefix], _ds(dataset)),
+        "blobs": False, "results": {"list": ["gcs_object_name", "width", "height"], "limit": limit}}}]
+
+
+# --------------------------------------------------------------------------- expressions
+
+def happy_frontal_faces(min_area=0.01, max_pan=20, dataset=None, limit=8, crops=False):
+    """Faces looking at the camera that show more joy than sorrow *and* anger.
+
+    The comparisons are between two properties of the same face and a function (``abs``) of
+    a third - all evaluated inside the database.
+    """
+    return [{"FindBoundingBox": {
+        "with_label": "face",
+        "constraints": _all(["$joy", ">", "$sorrow"], ["$joy", ">", "$anger"],
+                            [{"abs": "$pan_angle"}, "<", max_pan],
+                            ["$area_fraction", ">=", min_area], _ds(dataset)),
+        "blobs": crops,
+        "results": {"list": ["image_id", "joy", "pan_angle", "area_fraction"], "limit": limit},
+        "sort": {"key": "joy", "order": "descending"}}}]
+
+
+def delighted_faces(threshold=0.85, dataset=None, limit=8):
+    """Arithmetic over properties: joy + surprise above a threshold while sorrow stays low."""
+    return [{"FindBoundingBox": {
+        "with_label": "face",
+        "constraints": _all([{"add": ["$joy", "$surprise"]}, ">", threshold],
+                            ["$sorrow", "<", 0.1], _ds(dataset)),
+        "results": {"list": ["image_id", "joy", "surprise", "sorrow"], "limit": limit},
+        "sort": {"key": "joy", "order": "descending"}}}]
+
+
+def dominant_faces(min_area=0.08, min_confidence=0.9, dataset=None, limit=8, crops=False):
+    """Posters dominated by a single, confidently detected face."""
+    return [{"FindBoundingBox": {
+        "with_label": "face",
+        "constraints": _all(["$area_fraction", ">=", min_area],
+                            ["$detection_confidence", ">=", min_confidence], _ds(dataset)),
+        "blobs": crops,
+        "results": {"list": ["image_id", "area_fraction", "detection_confidence"], "limit": limit},
+        "sort": {"key": "area_fraction", "order": "descending"}}}]
+
+
+def sensitive_content(min_rank=3, dataset=None, limit=12):
+    """Content moderation: adult OR violent likelihood at least POSSIBLE (rank 3 of 5)."""
+    return [{"FindImage": {
+        "constraints": _all(["any", ["$adult_content_rank", ">=", min_rank],
+                             ["$violent_content_rank", ">=", min_rank]], _ds(dataset)),
+        "blobs": False,
+        "results": {"list": ["gcs_object_name", "adult_content_likelihood",
+                             "violent_content_likelihood"], "limit": limit}}}]
+
+
+def not_yet_enriched(dataset=None):
+    """Images whose face detector has not been stored yet (is_missing) - a data-quality check."""
+    return [{"FindImage": {
+        "constraints": _all(["$face_count", "is_missing"], _ds(dataset)),
+        "blobs": False, "results": {"count": True}}}]
+
+
+# --------------------------------------------------------------------------- graph traversal
+
+def happy_faces_on_tagged_posters(term="film", min_joy=0.3, dataset=None, limit=12):
+    """Three hops in one request: label -> poster -> that poster's happy faces."""
+    return [
+        {"FindEntity": {"_ref": 1, "with_class": "GCSLabel",
+                        "constraints": _all(["$description", "icontains", term], _ds(dataset))}},
+        {"FindImage": {"_ref": 2, "is_connected_to": {"ref": 1}, "blobs": False,
+                       "results": {"list": ["gcs_object_name"], "limit": limit}}},
+        {"FindBoundingBox": {"image_ref": 2, "with_label": "face",
+                             "constraints": ["$joy", ">=", min_joy],
+                             "results": {"list": ["image_id", "joy", "area_fraction"], "limit": limit},
+                             "sort": {"key": "joy", "order": "descending"}}},
+    ]
+
+
+def label_and_object_together(label="clothing", object_name="person", dataset=None, images=False,
+                              limit=12):
+    """Posters connected to a matching label *and* a matching object box (``all`` of two refs)."""
+    return [
+        {"FindEntity": {"_ref": 1, "with_class": "GCSLabel",
+                        "constraints": _all(["$description", "icontains", label], _ds(dataset))}},
+        {"FindBoundingBox": {"_ref": 2,
+                             "constraints": _all(["$object_name", "icontains", object_name],
+                                                 _ds(dataset))}},
+        {"FindImage": {"is_connected_to": {"all": [{"ref": 1}, {"ref": 2}]}, "blobs": images,
+                       "results": {"list": ["gcs_object_name", "face_count", "object_count"],
+                                   "limit": limit}}},
+    ]
+
+
+def crowded_posters(min_faces=3, min_objects=5, dataset=None, limit=12):
+    """Counts computed at enrichment time make 'many faces and many objects' a plain filter."""
+    return [{"FindImage": {
+        "constraints": _all(["$face_count", ">=", min_faces], ["$object_count", ">=", min_objects],
+                            _ds(dataset)),
+        "blobs": False, "results": {"list": ["gcs_object_name", "face_count", "object_count"],
+                                    "limit": limit},
+        "sort": {"key": "face_count", "order": "descending"}}}]
+
+
+def poster_neighbourhood(stem="9614", dataset=None, top_labels=8):
+    """Everything attached to one poster: the image, its best labels, every box."""
+    return [
+        {"FindImage": {"_ref": 1, "blobs": False,
+                       "constraints": _all(["$gcs_object_stem", "==", stem], _ds(dataset)),
+                       "results": {"all_properties": True}}},
+        {"FindEntity": {"with_class": "GCSLabel", "is_connected_to": {"ref": 1},
+                        "results": {"list": ["description", "score"], "limit": top_labels},
+                        "sort": {"key": "score", "order": "descending"}}},
+        {"FindBoundingBox": {"image_ref": 1, "coordinates": True,
+                             "results": {"list": ["_label", "score", "joy"]}}},
+    ]
+
+
+def why_flagged(min_rank=3, dataset=None, limit=5):
+    """Flagged posters plus the labels that explain them (top labels by score)."""
+    return [
+        {"FindImage": {"_ref": 1, "blobs": False,
+                       "constraints": _all(["any", ["$adult_content_rank", ">=", min_rank],
+                                            ["$violent_content_rank", ">=", min_rank]], _ds(dataset)),
+                       "results": {"list": ["gcs_object_name"], "limit": limit}}},
+        {"FindEntity": {"with_class": "GCSLabel", "is_connected_to": {"ref": 1},
+                        "constraints": ["$score", ">=", 0.8],
+                        "results": {"list": ["description", "score", "image_id"], "limit": 30},
+                        "sort": {"key": "score", "order": "descending"}}},
+    ]
+
+
+# --------------------------------------------------------------------------- spatial
+
+def overlap_candidates(object_name="Logo", dataset=None, limit=500):
+    """Posters that have both a box of ``object_name`` and a face box (candidates for IoU)."""
+    first = {"_ref": 1, "with_label": object_name}
+    second = {"_ref": 2, "with_label": "face"}
+    if dataset:
+        first["constraints"] = second["constraints"] = _all(_ds(dataset))
+    return [
+        {"FindBoundingBox": first},
+        {"FindBoundingBox": second},
+        {"FindImage": {"is_connected_to": {"all": [{"ref": 1}, {"ref": 2}]}, "blobs": False,
+                       "results": {"list": ["id", "gcs_object_name"], "limit": limit}}},
+    ]
+
+
+def object_face_overlap(image_id, object_name="Logo"):
+    """IoU matrix between the object boxes and the face boxes of ONE poster (RegionIoU).
+
+    Rows are the object boxes, columns the faces; a non-zero entry means they overlap.
+    """
+    return [
+        {"FindImage": {"_ref": 1, "blobs": False, "constraints": {"id": ["==", image_id]}}},
+        {"FindBoundingBox": {"_ref": 2, "image_ref": 1, "with_label": object_name,
+                             "coordinates": True, "results": {"list": ["score"]}}},
+        {"FindBoundingBox": {"_ref": 3, "image_ref": 1, "with_label": "face",
+                             "coordinates": True, "results": {"list": ["joy"]}}},
+        {"RegionIoU": {"roi_1": 2, "roi_2": 3}},
+    ]
+
+
+# --------------------------------------------------------------------------- registry
+
+# slug, group, function, one-line "what it shows" (also used as the UI file's description)
+CATALOG = [
+    ("labels_containing", "String search", labels_containing, "Case-insensitive substring over label text, then traverse to the posters"),
+    ("people_by_name", "String search", people_by_name, "RE2 regular expression over object names"),
+    ("label_search_boolean", "String search", label_search_boolean, "any / not / score combined in one text search"),
+    ("label_shapes", "String search", label_shapes, "like and istarts_with patterns"),
+    ("file_name_search", "String search", file_name_search, "Prefix search over object names (trigram index)"),
+    ("happy_frontal_faces", "Expressions", happy_frontal_faces, "Property-vs-property comparison plus abs() inside the database"),
+    ("delighted_faces", "Expressions", delighted_faces, "Arithmetic over properties"),
+    ("dominant_faces", "Expressions", dominant_faces, "Posters dominated by one confident face"),
+    ("sensitive_content", "Expressions", sensitive_content, "Moderation across two detectors' ranks"),
+    ("not_yet_enriched", "Expressions", not_yet_enriched, "is_missing as a data-quality check"),
+    ("happy_faces_on_tagged_posters", "Graph traversal", happy_faces_on_tagged_posters, "label -> poster -> faces in one request"),
+    ("label_and_object_together", "Graph traversal", label_and_object_together, "Posters connected to a label AND an object box"),
+    ("crowded_posters", "Graph traversal", crowded_posters, "Many faces and many objects, from stored counts"),
+    ("poster_neighbourhood", "Graph traversal", poster_neighbourhood, "Everything attached to one poster"),
+    ("why_flagged", "Graph traversal", why_flagged, "Flagged posters plus the labels that explain them"),
+    ("overlap_candidates", "Spatial", overlap_candidates, "Posters with both a Logo and a face box"),
+]
+
+
+def export(directory=None, dataset=None):
+    """Write each catalog query as ``queries/NN_slug.json`` (a plain query for the web UI)."""
+    directory = Path(directory or HERE / "queries")
+    directory.mkdir(exist_ok=True)
+    for old in directory.glob("*.json"):
+        old.unlink()
+    for n, (slug, group, fn, why) in enumerate(CATALOG, 1):
+        query = fn(dataset=dataset) if dataset else fn()
+        (directory / f"{n:02d}_{slug}.json").write_text(json.dumps(query, indent=2) + "\n")
+    index = ["# Queries for the ApertureDB web UI\n",
+             "Paste any of these JSON files into the UI's query editor "
+             "(or run them from `queries.ipynb`).\n"]
+    group = None
+    for n, (slug, g, fn, why) in enumerate(CATALOG, 1):
+        if g != group:
+            index.append(f"\n## {g}\n")
+            group = g
+        index.append(f"- `{n:02d}_{slug}.json` - {why}")
+    (directory / "README.md").write_text("\n".join(index) + "\n")
+    return directory
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Export the demo queries as JSON for the UI")
+    parser.add_argument("--export", action="store_true", required=True)
+    parser.add_argument("--dataset", help="restrict the exported queries to one dataset")
+    args = parser.parse_args()
+    print("wrote", export(dataset=args.dataset))
