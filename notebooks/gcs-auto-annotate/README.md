@@ -42,6 +42,8 @@ The scripts talk to **any** ApertureDB; which one is decided by a key, nothing e
 | `docker compose --profile notebook up -d` | + JupyterLab at http://localhost:8899 (password `test`, or set `NOTEBOOK_PASSWORD`) with this folder under `gcs-auto-annotate/` and the connection already set |
 | `docker compose --profile ui up -d` | + the ApertureDB web UI at http://localhost:8088 (admin / admin). The UI image is not on public Docker Hub: you need access to it, or set `WEBUI_IMAGE`. |
 
+Set `APERTUREDB_IMAGE` to pin or try another server image (for example `aperturedata/aperturedb-community:dev`).
+
 The Community Edition image is licensed for evaluation and development only
 ([terms](https://www.aperturedata.io/docker-license)). `docker compose down` stops it, `docker compose down -v`
 also deletes the data.
