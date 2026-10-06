@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>GCS auto-annotate to ApertureDB: pipeline</title>
+<style>
+  html, body { margin: 0; background: #ffffff; }
+  svg { display: block; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .title { font-size: 44px; font-weight: 700; fill: #12263f; }
+  .sub { font-size: 24px; fill: #4a5a6e; }
+  .col { font-size: 26px; font-weight: 700; fill: #12263f; letter-spacing: .5px; }
+  .h { font-size: 26px; font-weight: 700; }
+  .t { font-size: 21px; fill: #1d2b3a; }
+  .s { font-size: 18px; fill: #4a5a6e; }
+  .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
+  .arrow { stroke: #5b6b7e; stroke-width: 3; fill: none; marker-end: url(#ah); }
+  .dash { stroke: #9aa7b5; stroke-width: 3; fill: none; stroke-dasharray: 9 7; marker-end: url(#ahg); }
+  .lbl { font-size: 18px; fill: #3d4c5e; font-style: italic; }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b6b7e"/></marker>
+    <marker id="ahg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9aa7b5"/></marker>
+  </defs>
+
+  <text class="title" x="70" y="78">Google Cloud Storage auto-annotate  &#8594;  ApertureDB</text>
+  <text class="sub" x="70" y="118">From a bucket folder to a queryable graph of images, labels, objects, faces and safety ratings</text>
+
+  <!-- column headings -->
+  <text class="col" x="70" y="178">1  GOOGLE CLOUD STORAGE</text>
+  <text class="col" x="550" y="178">2  PIPELINE (this demo)</text>
+  <text class="col" x="1050" y="178">3  APERTUREDB</text>
+  <text class="col" x="1550" y="178">4  EXPLORE</text>
+
+  <!-- 1: GCS (x 70..450) -->
+  <rect x="70" y="200" width="380" height="250" rx="16" fill="#eef3fb" stroke="#4a78c2" stroke-width="3"/>
+  <text class="h" x="95" y="244" fill="#1d4f9c">Bucket folder of images</text>
+  <text class="t" x="95" y="282">gs://bucket/folder/*.jpg</text>
+  <text class="s" x="95" y="314">private; read access is enough</text>
+  <rect x="95" y="338" width="330" height="90" rx="10" fill="#ffffff" stroke="#4a78c2" stroke-width="2"/>
+  <text class="s" x="110" y="364">each image carries detector results</text>
+  <text class="t" x="110" y="396">contexts: <tspan class="mono" font-size="19">google:annotation:*</tspan></text>
+
+  <rect x="70" y="480" width="380" height="300" rx="16" fill="#eef3fb" stroke="#4a78c2" stroke-width="3"/>
+  <text class="h" x="95" y="524" fill="#1d4f9c">Auto-annotate detectors</text>
+  <text class="t" x="95" y="566">&#9679; label: 50 labels per image</text>
+  <text class="t" x="95" y="602">&#9679; object: boxes with scores</text>
+  <text class="t" x="95" y="638">&#9679; face: boxes, emotions, pose,</text>
+  <text class="t" x="95" y="670">    34 landmarks</text>
+  <text class="t" x="95" y="706">&#9679; content safety: adult, violent</text>
+  <text class="s" x="95" y="748">run by Google, stored on the objects</text>
+
+  <!-- 2: pipeline (x 550..950) -->
+  <rect x="550" y="200" width="400" height="270" rx="16" fill="#fff4e6" stroke="#d98324" stroke-width="3"/>
+  <text class="h mono" x="575" y="244" fill="#a85d0b">ingest.py</text>
+  <text class="t" x="575" y="284">&#8226; lists the folder (prefix)</text>
+  <text class="t" x="575" y="318">&#8226; downloads each image with</text>
+  <text class="t" x="575" y="348">   your Google credentials</text>
+  <text class="t" x="575" y="382">&#8226; loads it into ApertureDB</text>
+  <text class="t" x="575" y="416">&#8226; skips what is already loaded</text>
+  <text class="s" x="575" y="450">safe to re-run (cron) for new objects</text>
+
+  <rect x="550" y="510" width="400" height="270" rx="16" fill="#fff4e6" stroke="#d98324" stroke-width="3"/>
+  <text class="h mono" x="575" y="554" fill="#a85d0b">enrich.py</text>
+  <text class="t" x="575" y="594">&#8226; 1 metadata call: which detectors</text>
+  <text class="t" x="575" y="624">   have finished for this image</text>
+  <text class="t" x="575" y="658">&#8226; fetches only missing contexts</text>
+  <text class="t" x="575" y="692">&#8226; parsers.py turns them into rows</text>
+  <text class="t" x="575" y="726">&#8226; keeps object boxes scoring &#8805; 0.5</text>
+  <text class="s" x="575" y="760">score histogram saved in a stats file</text>
+
+  <!-- 3: ApertureDB (x 1050..1450) -->
+  <rect x="1050" y="200" width="400" height="580" rx="16" fill="#e9f2fb" stroke="#1f4e8c" stroke-width="3"/>
+  <text class="h" x="1075" y="244" fill="#1f4e8c">Graph in ApertureDB</text>
+  <text class="s" x="1075" y="272">local Community Edition or any instance</text>
+  <line x1="1250" y1="425" x2="1172" y2="372" stroke="#5b6b7e" stroke-width="3" marker-end="url(#ah)"/>
+  <line x1="1250" y1="425" x2="1328" y2="372" stroke="#5b6b7e" stroke-width="3" marker-end="url(#ah)"/>
+  <line x1="1170" y1="520" x2="1240" y2="456" stroke="#5b6b7e" stroke-width="3" marker-end="url(#ah)"/>
+  <line x1="1330" y1="520" x2="1262" y2="456" stroke="#5b6b7e" stroke-width="3" marker-end="url(#ah)"/>
+  <circle cx="1250" cy="425" r="34" fill="#1f4e8c"/>
+  <text x="1250" y="432" text-anchor="middle" font-size="19" font-weight="700" fill="#fff">Image</text>
+  <circle cx="1160" cy="350" r="26" fill="#2ca02c"/>
+  <circle cx="1340" cy="350" r="26" fill="#2ca02c"/>
+  <text class="s" x="1160" y="318" text-anchor="middle">label</text>
+  <text class="s" x="1340" y="318" text-anchor="middle">label</text>
+  <text class="s" x="1250" y="352" text-anchor="middle" fill="#2a7a2a">HasLabel</text>
+  <circle cx="1160" cy="542" r="26" fill="#d98324"/>
+  <circle cx="1340" cy="542" r="26" fill="#d62728"/>
+  <text class="s" x="1160" y="592" text-anchor="middle">object box</text>
+  <text class="s" x="1340" y="592" text-anchor="middle">face box</text>
+
+  <rect x="1075" y="620" width="350" height="140" rx="10" fill="#ffffff" stroke="#1f4e8c" stroke-width="2"/>
+  <text class="s" x="1088" y="646"><tspan font-weight="700">image</tspan>: name, size, counts, ratings</text>
+  <text class="s" x="1088" y="672"><tspan font-weight="700">label</tspan>: description, score, topicality</text>
+  <text class="s" x="1088" y="698"><tspan font-weight="700">object box</tspan>: name, score, area</text>
+  <text class="s" x="1088" y="724"><tspan font-weight="700">face box</tspan>: joy, anger, pose,</text>
+  <text class="s" x="1088" y="748">                     landmarks</text>
+
+  <!-- 4: explore (x 1550..1850) -->
+  <rect x="1550" y="200" width="300" height="130" rx="16" fill="#eaf6ea" stroke="#2a7a2a" stroke-width="3"/>
+  <text class="h" x="1570" y="244" fill="#2a7a2a">Notebook</text>
+  <text class="s" x="1570" y="274">string search, expressions,</text>
+  <text class="s" x="1570" y="300">traversal, RegionIoU, pixels</text>
+  <rect x="1550" y="355" width="300" height="130" rx="16" fill="#eaf6ea" stroke="#2a7a2a" stroke-width="3"/>
+  <text class="h" x="1570" y="399" fill="#2a7a2a">ApertureDB web UI</text>
+  <text class="s" x="1570" y="429">custom queries, image search,</text>
+  <text class="s" x="1570" y="455">the same queries one click away</text>
+  <rect x="1550" y="510" width="300" height="130" rx="16" fill="#eaf6ea" stroke="#2a7a2a" stroke-width="3"/>
+  <text class="h" x="1570" y="554" fill="#2a7a2a">Graph views</text>
+  <text class="s" x="1570" y="584">schema, a poster with its boxes,</text>
+  <text class="s" x="1570" y="610">any query result as a graph</text>
+  <rect x="1550" y="665" width="300" height="115" rx="16" fill="#eaf6ea" stroke="#2a7a2a" stroke-width="3"/>
+  <text class="h mono" x="1570" y="707" fill="#2a7a2a" font-size="22">validate.py  clean.py</text>
+  <text class="s" x="1570" y="738">checks; remove one detector,</text>
+  <text class="s" x="1570" y="762">all detections, or everything</text>
+
+  <!-- arrows (gaps: 450-550, 950-1050, 1450-1550) -->
+  <path class="arrow" d="M450 325 H550"/>
+  <text class="lbl" x="500" y="308" text-anchor="middle">images</text>
+  <path class="arrow" d="M450 640 H550"/>
+  <text class="lbl" x="500" y="623" text-anchor="middle">contexts</text>
+  <path class="arrow" d="M950 335 H1050"/>
+  <text class="lbl" x="1000" y="318" text-anchor="middle">images</text>
+  <path class="arrow" d="M950 645 H1050"/>
+  <text class="lbl" x="1000" y="618" text-anchor="middle">labels,</text>
+  <text class="lbl" x="1000" y="636" text-anchor="middle">boxes</text>
+  <path class="arrow" d="M1450 400 H1550"/>
+  <text class="lbl" x="1500" y="383" text-anchor="middle">queries</text>
+  <text class="s" x="70" y="808" fill="#4a78c2">Google JSON API: objects.list, objects.get, viewFullContext</text>
+  <path d="M260 450 V480" stroke="#4a78c2" stroke-width="3" stroke-dasharray="4 5"/>
+
+  <!-- bottom band: what is next -->
+  <line x1="70" y1="850" x2="1850" y2="850" stroke="#d5dde7" stroke-width="2"/>
+  <text class="col" x="70" y="892" fill="#4a5a6e">WHAT COMES NEXT</text>
+  <rect x="70" y="912" width="560" height="120" rx="14" fill="#f6f8fb" stroke="#9aa7b5" stroke-width="2" stroke-dasharray="9 7"/>
+  <text class="h" x="95" y="952" fill="#12263f" font-size="23">Richer model</text>
+  <text class="s" x="95" y="984">labels as array properties, full-text search,</text>
+  <text class="s" x="95" y="1010">detector and threshold recorded on the edges</text>
+  <rect x="680" y="912" width="560" height="120" rx="14" fill="#f6f8fb" stroke="#9aa7b5" stroke-width="2" stroke-dasharray="9 7"/>
+  <text class="h" x="705" y="952" fill="#12263f" font-size="23">No scripts to run</text>
+  <text class="s" x="705" y="984">attach a bucket and objects plus their detections</text>
+  <text class="s" x="705" y="1010">flow in automatically (native integration)</text>
+  <rect x="1290" y="912" width="560" height="120" rx="14" fill="#f6f8fb" stroke="#9aa7b5" stroke-width="2" stroke-dasharray="9 7"/>
+  <text class="h" x="1315" y="952" fill="#12263f" font-size="23">Embeddings (phase 2)</text>
+  <text class="s" x="1315" y="984">similarity search combined with these filters:</text>
+  <text class="s" x="1315" y="1010">"posters like this one, rated family-friendly"</text>
+</svg>
+</body>
+</html>

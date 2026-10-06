@@ -11,6 +11,14 @@ straight from the query result.
 > **Phase 1: structured metadata only.** The detectors do not return embeddings yet. When GCS can generate
 > them, they can be added next to these properties for similarity search (phase 2).
 
+## How it fits together
+
+![Pipeline: bucket folder and auto-annotate detectors, ingest.py and enrich.py, the graph in ApertureDB, and the ways to explore it](images/pipeline.png)
+
+`ingest.py` and `enrich.py` talk to the Google JSON API (`objects.list`, `objects.get`, `viewFullContext`) and to
+ApertureDB; everything on the right of the graph reads only from ApertureDB. The editable source of the diagram
+is [`images/pipeline.html`](images/pipeline.html).
+
 ## Quick start
 
 You need Python 3.10+, Docker, and read access to a bucket that has auto-annotate results.
