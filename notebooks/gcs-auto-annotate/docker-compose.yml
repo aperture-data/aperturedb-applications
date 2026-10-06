@@ -92,6 +92,8 @@ services:
       APERTUREDB_JSON: '{"host":"lenz","port":55551,"username":"admin","password":"${APERTUREDB_PASSWORD:-admin}","use_ssl":false}'
     volumes:
       - ./:/notebooks/gcs-auto-annotate
+      # no "Build Recommended" prompt on first open
+      - ./jupyter/page_config.json:/root/.jupyter/labconfig/page_config.json:ro
     command: bash -c "adb config create gcs_local --host lenz --no-interactive --active; /start.sh"
 
 configs:

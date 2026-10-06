@@ -342,13 +342,13 @@ GRAPH_HTML_TEMPLATE = r"""<!DOCTYPE html>
   html, body { margin: 0; padding: 0; background: #0b1020; overflow: hidden; font-family: -apple-system, sans-serif; }
   #graph { width: 100vw; height: 100vh; position: relative; }
   .box { position: absolute; z-index: 10; color: #eaeaea; background: rgba(0,0,0,0.55); border-radius: 8px; }
-  #info { top: 14px; left: 14px; font-size: 15px; padding: 8px 16px; max-width: 40vw; }
+  #info { top: 14px; left: 14px; font-size: 15px; padding: 8px 16px; max-width: 62vw; }
   #titlebox { top: 14px; right: 18px; font-size: 19px; font-weight: 700; background: none; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
   #legend { top: 62px; left: 14px; font-size: 14px; padding: 8px 12px; max-height: 40vh; overflow-y: auto; }
   #legend .item { cursor: pointer; margin: 3px 0; white-space: nowrap; }
   #legend .item.off { opacity: 0.35; text-decoration: line-through; }
   #legend .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 7px; }
-  #search { top: 14px; left: 50%; transform: translateX(-50%); padding: 0; background: none; }
+  #search { top: 56px; right: 18px; padding: 0; background: none; }
   #search input { width: 260px; padding: 7px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25);
                   background: rgba(10,14,30,0.9); color: #eaeaea; font-size: 14px; outline: none; }
   #panel { bottom: 18px; right: 18px; width: 400px; max-height: 68vh; overflow-y: auto; font-size: 15px;
@@ -424,6 +424,7 @@ function Graph() {
     const n = graphData.nodes.length;
     fg.d3Force('charge').strength(n > 60 ? -90 : -260);
     fg.d3Force('link').distance(n > 60 ? 45 : 85);
+    window.__gv = {fg, graphData};  // handle for tests and debugging
     fg.d3Force('x', forceX(0).strength(0.07));
     fg.d3Force('y', forceY(0).strength(0.07));
     fg.d3ReheatSimulation();
@@ -463,7 +464,7 @@ function Graph() {
     document.getElementById('info').textContent = hoverNode
       ? (hoverNode.cls + ': ' + hoverNode.name)
       : (preHighlight.length ? preHighlight.length + ' highlighted node(s). Hover or click for details.'
-                             : 'Hover a node to highlight its connections. Click a node for details.');
+                             : 'Hover to highlight connections; click for details.');
   }, [hoverNode]);
 
   React.useEffect(() => {
@@ -531,7 +532,13 @@ function Graph() {
       nodeRelSize={5}
       nodeVal={(n) => 1 + Math.sqrt(degree[n.id] || 0)}
       nodeVisibility={(n) => !hidden.has(n.cls)}
-      onEngineStop={() => fgRef.current && fgRef.current.zoomToFit(500, 90)}
+      onEngineStop={() => {
+        const fg = fgRef.current;
+        if (!fg) return;
+        fg.zoomToFit(500, 90);
+        // a handful of nodes would otherwise fill the whole frame with huge circles
+        setTimeout(() => { if (fg.zoom() > 2) fg.zoom(2, 300); }, 650);
+      }}
       cooldownTime={4000}
       nodeColor={(n) => dim(n) ? faded(n.color) : n.color}
       nodeCanvasObjectMode={() => 'after'}
