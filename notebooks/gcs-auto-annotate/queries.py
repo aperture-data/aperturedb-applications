@@ -270,18 +270,61 @@ CATALOG = [
 ]
 
 
+LOADER_PAGE = """<!doctype html>
+<html><head><meta charset="utf-8"><title>Load the demo queries into the ApertureDB UI</title>
+<style>body{font:16px sans-serif;max-width:640px;margin:60px auto;line-height:1.5}code{background:#eee;padding:1px 5px}</style>
+</head><body>
+<h2>Demo queries for the ApertureDB UI</h2>
+<p id="msg">Loading...</p>
+<script>
+const QUERIES = __QUERIES__;
+// The UI keeps its saved custom queries in this browser's localStorage, so this page must be opened from the
+// UI's own address (it is served at /load-queries.html next to the UI).
+const KEY = 'savedQueryCustoms';
+const msg = document.getElementById('msg');
+try {
+  const user = localStorage.getItem('username') || 'admin';
+  const names = new Set(QUERIES.map((q) => q.name));
+  const kept = JSON.parse(localStorage.getItem(KEY) || '[]').filter((e) => !(e.userName === user && names.has(e.name)));
+  const now = new Date().toISOString();
+  const added = QUERIES.map((q) => ({id: (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)),
+    userName: user, name: q.name, date: now, query: JSON.stringify(q.query, null, 2), isModified: false, isSelected: false}));
+  localStorage.setItem(KEY, JSON.stringify(kept.concat(added)));
+  const loggedIn = !!localStorage.getItem('token');
+  msg.innerHTML = 'Added <b>' + added.length + '</b> queries for user <code>' + user + '</code>. ' +
+    (loggedIn ? 'Opening <a href="/custom-query">Custom Query</a> ... they are listed under <b>Queries</b> on the left.'
+              : 'Opening the <a href="/login">login page</a> ... after logging in, open <b>Custom Query</b>: they are listed under <b>Queries</b> on the left.');
+  setTimeout(() => { location.href = loggedIn ? '/custom-query' : '/login'; }, 1800);
+} catch (e) {
+  msg.textContent = 'Could not store the queries: ' + e;
+}
+</script></body></html>
+"""
+
+
+def ui_name(n, slug):
+    return f"{n:02d} {slug.replace('_', ' ')}"
+
+
+
 def export(directory=None, dataset=None):
     """Write each catalog query as ``queries/NN_slug.json`` (a plain query for the web UI)."""
     directory = Path(directory or HERE / "queries")
     directory.mkdir(exist_ok=True)
     for old in directory.glob("*.json"):
         old.unlink()
+    ui = []
     for n, (slug, group, fn, why) in enumerate(CATALOG, 1):
         query = fn(dataset=dataset) if dataset else fn()
         (directory / f"{n:02d}_{slug}.json").write_text(json.dumps(query, indent=2) + "\n")
+        ui.append({"name": ui_name(n, slug), "query": query})
+    (directory / "load-into-ui.html").write_text(LOADER_PAGE.replace("__QUERIES__", json.dumps(ui).replace("</", "<\\/")))
     index = ["# Queries for the ApertureDB web UI\n",
              "Paste any of these JSON files into the UI's query editor "
-             "(or run them from `queries.ipynb`).\n"]
+             "(or run them from `queries.ipynb`).\n",
+             "**One click for the local web UI:** with `docker compose --profile ui up -d` running, open "
+             "http://localhost:8088/load-queries.html once. It stores all of them in your browser's saved "
+             "queries (the UI keeps those in the browser, so do this once per browser).\n"]
     group = None
     for n, (slug, g, fn, why) in enumerate(CATALOG, 1):
         if g != group:

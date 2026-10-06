@@ -112,7 +112,9 @@ range filter. Boxes are native ApertureDB bounding boxes, so commands such as `R
 ## What it shows
 
 [`queries.ipynb`](queries.ipynb) walks through these; every query is also in [`queries/`](queries/README.md) as
-JSON to paste into the web UI's query editor.
+JSON to paste into the web UI's query editor. With the `ui` profile running, open
+http://localhost:8088/load-queries.html once and all of them appear under **Queries** in the UI's Custom Query page
+(the UI keeps saved queries in the browser, so do this once per browser).
 
 * **String search** - `icontains`, `regex`, `like`, `starts_with` over labels, object names and file names
   (trigram indexes), combined with `any` / `not` and score filters in one request.

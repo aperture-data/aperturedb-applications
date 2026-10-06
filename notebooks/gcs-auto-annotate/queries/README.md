@@ -2,6 +2,8 @@
 
 Paste any of these JSON files into the UI's query editor (or run them from `queries.ipynb`).
 
+**One click for the local web UI:** with `docker compose --profile ui up -d` running, open http://localhost:8088/load-queries.html once. It stores all of them in your browser's saved queries (the UI keeps those in the browser, so do this once per browser).
+
 
 ## String search
 
