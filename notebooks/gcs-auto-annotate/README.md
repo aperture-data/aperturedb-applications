@@ -119,7 +119,9 @@ range filter. Boxes are native ApertureDB bounding boxes, so commands such as `R
 
 ## What it shows
 
-[`queries.ipynb`](queries.ipynb) walks through these; every query is also in [`queries/`](queries/README.md) as
+[`queries.ipynb`](queries.ipynb) walks through these (each with a title and what it shows: what is in the data - labels and
+safety ratings counted with `results.group` -, a headline question, not-safe-for-work and family-friendly filters, string search,
+expressions, graph traversal, spatial); every query is also in [`queries/`](queries/README.md) as
 JSON to paste into the web UI's query editor. With the `ui` profile running, open
 http://localhost:8088/load-queries.html once and all of them appear under **Queries** in the UI's Custom Query page
 (the UI keeps saved queries in the browser, so do this once per browser).
@@ -140,7 +142,7 @@ for any schema).
 ```bash
 python graph_viz.py schema                                    # classes and connections with live counts
 python graph_viz.py node _Image --where gcs_object_stem=10028 --label _Image=gcs_object_stem --open
-python graph_viz.py query queries/07_happy_frontal_faces.json --label _Image=gcs_object_stem --open
+python graph_viz.py query queries/12_happy_frontal_faces.json --label _Image=gcs_object_stem --open
 ```
 
 Click a node for its properties, its picture with every stored box drawn over it, and the query that fetches it.

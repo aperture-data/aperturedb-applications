@@ -1,0 +1,14 @@
+[
+  {
+    "FindImage": {
+      "blobs": false,
+      "results": {
+        "group": [
+          "adult_content_likelihood",
+          "violent_content_likelihood"
+        ],
+        "count": true
+      }
+    }
+  }
+]

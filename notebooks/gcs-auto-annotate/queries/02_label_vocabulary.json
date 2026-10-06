@@ -1,0 +1,22 @@
+[
+  {
+    "FindEntity": {
+      "with_class": "GCSLabel",
+      "constraints": [
+        "all",
+        [
+          "$score",
+          ">=",
+          0.5
+        ]
+      ],
+      "results": {
+        "group": [
+          "description"
+        ],
+        "count": true,
+        "avg": "score"
+      }
+    }
+  }
+]
