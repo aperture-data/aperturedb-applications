@@ -142,7 +142,7 @@ for any schema).
 ```bash
 python graph_viz.py schema                                    # classes and connections with live counts
 python graph_viz.py node _Image --where gcs_object_stem=10028 --label _Image=gcs_object_stem --open
-python graph_viz.py query queries/12_happy_frontal_faces.json --label _Image=gcs_object_stem --open
+python graph_viz.py query queries/11_happy_frontal_faces.json --label _Image=gcs_object_stem --open
 ```
 
 Click a node for its properties, its picture with every stored box drawn over it, and the query that fetches it.

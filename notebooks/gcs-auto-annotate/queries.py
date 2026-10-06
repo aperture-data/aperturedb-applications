@@ -173,29 +173,8 @@ def safety_ratings(dataset=None):
 
 # --------------------------------------------------------------------------- content safety
 
-def not_safe_for_work(min_rank=4, dataset=None, images=True, limit=12):
-    """Posters the content-safety detector rates LIKELY (4) or VERY_LIKELY (5) adult, most explicit first."""
-    return [{"FindImage": {
-        "constraints": _all(["$adult_content_rank", ">=", min_rank], _ds(dataset)),
-        "blobs": images,
-        "results": {"list": ["gcs_object_name", "adult_content_likelihood", "violent_content_likelihood", "face_count"],
-                    "limit": limit},
-        "sort": {"key": "adult_content_rank", "order": "descending"}}}]
-
-
-def not_safe_for_work_labels(min_rank=4, min_score=0.7, dataset=None):
-    """What do the not-safe-for-work posters have in common?  Group the labels of exactly those posters."""
-    return [
-        {"FindImage": {"_ref": 1, "blobs": False,
-                       "constraints": _all(["$adult_content_rank", ">=", min_rank], _ds(dataset))}},
-        {"FindEntity": {"with_class": "GCSLabel", "is_connected_to": {"ref": 1},
-                        "constraints": ["$score", ">=", min_score],
-                        "results": {"group": ["description"], "count": True}}},
-    ]
-
-
 def family_friendly(term="animation", dataset=None, images=True, limit=12):
-    """The opposite filter: posters with a label containing ``term`` that are rated VERY_UNLIKELY adult *and* violent."""
+    """Posters with a label containing ``term`` that the content-safety detector rates VERY_UNLIKELY adult *and* violent."""
     return [
         {"FindEntity": {"_ref": 1, "with_class": "GCSLabel",
                         "constraints": _all(["$description", "icontains", term], ["$score", ">=", 0.5], _ds(dataset))}},
@@ -203,6 +182,25 @@ def family_friendly(term="animation", dataset=None, images=True, limit=12):
                        "constraints": ["all", ["$adult_content_rank", "<=", 1], ["$violent_content_rank", "<=", 1]],
                        "results": {"list": ["gcs_object_name", "adult_content_likelihood", "violent_content_likelihood"],
                                    "limit": limit}}},
+    ]
+
+
+def family_movie_night(term="animation", min_joy=0.6, dataset=None, images=True, limit=12):
+    """A natural-language ask as one query: *family-friendly movies about* ``term`` *where everyone looks happy*.
+
+    Label search, both safety ratings at VERY_UNLIKELY, at least one face and the least happy face still
+    above ``min_joy`` - label, safety and faces are three different detectors, combined in one request.
+    """
+    return [
+        {"FindEntity": {"_ref": 1, "with_class": "GCSLabel",
+                        "constraints": _all(["$description", "icontains", term], ["$score", ">=", 0.5], _ds(dataset))}},
+        {"FindImage": {"is_connected_to": {"ref": 1}, "blobs": images,
+                       "constraints": ["all", ["$adult_content_rank", "<=", 1], ["$violent_content_rank", "<=", 1],
+                                       ["$face_count", ">=", 1], ["$min_face_joy", ">=", min_joy]],
+                       "results": {"list": ["gcs_object_name", "face_count", "min_face_joy",
+                                            "adult_content_likelihood", "violent_content_likelihood"],
+                                   "limit": limit},
+                       "sort": {"key": "face_count", "order": "descending"}}},
     ]
 
 
@@ -328,12 +326,11 @@ def object_face_overlap(image_id, object_name="Logo"):
 
 # slug, group, function, one-line "what it shows" (also used as the UI file's description)
 CATALOG = [
+    ("family_movie_night", "Headline", family_movie_night, "A natural-language ask as one query: family-friendly AND animated AND every face smiling"),
     ("everyone_looks_happy", "Headline", everyone_looks_happy, "Label term AND every face on the poster smiling, in one request"),
     ("label_vocabulary", "Discover the data", label_vocabulary, "Every label Google found, with how many posters carry it (group + count)"),
     ("safety_ratings", "Discover the data", safety_ratings, "Content-safety ratings: how many posters per (adult, violent) pair"),
-    ("not_safe_for_work", "Content safety", not_safe_for_work, "Posters rated LIKELY or VERY_LIKELY adult"),
-    ("not_safe_for_work_labels", "Content safety", not_safe_for_work_labels, "What those posters are about: labels grouped over exactly that set"),
-    ("family_friendly", "Content safety", family_friendly, "The opposite filter: a label AND both ratings VERY_UNLIKELY"),
+    ("family_friendly", "Family friendly", family_friendly, "A label AND both safety ratings VERY_UNLIKELY"),
     ("labels_containing", "String search", labels_containing, "Case-insensitive substring over label text, then traverse to the posters"),
     ("people_by_name", "String search", people_by_name, "RE2 regular expression over object names"),
     ("label_search_boolean", "String search", label_search_boolean, "any / not / score combined in one text search"),
