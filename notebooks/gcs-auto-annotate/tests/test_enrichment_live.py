@@ -41,7 +41,7 @@ def dataset(db):
 
 
 def add_image(db, dataset):
-    image = parsers.image_id("b", "dir/1.jpg")
+    image = parsers.image_id("b", f"{dataset}/1.jpg")  # unique per test run, so leftovers never collide
     buf = io.BytesIO()
     Image.new("RGB", (W, H), "white").save(buf, "JPEG")
     props = {"id": image, "dataset_name": dataset, "gcs_object_name": "dir/1.jpg", "width": W, "height": H}
@@ -91,6 +91,7 @@ def test_enrich_is_idempotent(db, dataset):
     props = run(db, [{"FindImage": {"blobs": False, "constraints": {"id": ["==", image]},
                                     "results": {"all_properties": True}}}])[0]["FindImage"]["entities"][0]
     assert props["face_count"] == 1 and props["object_count"] == 3 and props["label_count"] == 6
+    assert props["min_face_joy"] == props["max_face_joy"]  # one face
     assert props["adult_content_rank"] == 3
     assert props["gcs_enriched_detectors"] == "face,label,object,safety"
 
@@ -133,7 +134,7 @@ def test_clean_one_detector_leaves_the_rest(db, dataset):
     assert counts(db, dataset) == {"labels": 6, "boxes": 3, "images": 1}  # only the face box went
     props = image_props(db, image)
     assert props["gcs_enriched_detectors"] == "label,object,safety"
-    assert "face_count" not in props and "max_face_joy" not in props
+    assert "face_count" not in props and "max_face_joy" not in props and "min_face_joy" not in props
     assert props["object_count"] == 3 and props["adult_content_rank"] == 3
 
     # and the next enrich of just that detector restores it

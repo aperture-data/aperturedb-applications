@@ -28,4 +28,4 @@ def test_loader_page_embeds_valid_named_queries(tmp_path):
 
 def test_export_can_scope_queries_to_a_dataset(tmp_path):
     out = queries.export(tmp_path, dataset="b/p")
-    assert "b/p" in (out / "06_happy_frontal_faces.json").read_text()
+    assert "b/p" in (out / "07_happy_frontal_faces.json").read_text()

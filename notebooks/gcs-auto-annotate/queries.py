@@ -149,6 +149,24 @@ def not_yet_enriched(dataset=None):
 
 # --------------------------------------------------------------------------- graph traversal
 
+def everyone_looks_happy(term="fictional character", min_joy=0.7, min_score=0.5, dataset=None, images=True, limit=12):
+    """The headline query: posters labelled ``term`` on which *every* detected face is smiling.
+
+    Label search, a per-poster summary written at load time (``min_face_joy`` is the least happy
+    face on the poster) and a graph hop, in one request.  Posters with no face never match.
+    """
+    return [
+        {"FindEntity": {"_ref": 1, "with_class": "GCSLabel",
+                        "constraints": _all(["$description", "icontains", term],
+                                            ["$score", ">=", min_score], _ds(dataset))}},
+        {"FindImage": {"is_connected_to": {"ref": 1}, "blobs": images,
+                       "constraints": _all(["$face_count", ">=", 1], ["$min_face_joy", ">=", min_joy]),
+                       "results": {"list": ["gcs_object_name", "face_count", "min_face_joy", "label_count"],
+                                   "limit": limit},
+                       "sort": {"key": "face_count", "order": "descending"}}},
+    ]
+
+
 def happy_faces_on_tagged_posters(term="film", min_joy=0.3, dataset=None, limit=12):
     """Three hops in one request: label -> poster -> that poster's happy faces."""
     return [
@@ -251,6 +269,7 @@ def object_face_overlap(image_id, object_name="Logo"):
 
 # slug, group, function, one-line "what it shows" (also used as the UI file's description)
 CATALOG = [
+    ("everyone_looks_happy", "Headline", everyone_looks_happy, "Label term AND every face on the poster smiling, in one request"),
     ("labels_containing", "String search", labels_containing, "Case-insensitive substring over label text, then traverse to the posters"),
     ("people_by_name", "String search", people_by_name, "RE2 regular expression over object names"),
     ("label_search_boolean", "String search", label_search_boolean, "any / not / score combined in one text search"),

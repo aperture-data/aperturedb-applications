@@ -109,7 +109,7 @@ _Image ──HasLabel──▶ GCSLabel               description, score, topica
 
 | Stored on | Properties |
 |---|---|
-| `_Image` | `id`, `dataset_name`, `gcs_bucket`, `gcs_object_name`, `gcs_generation`, `width`, `height`; `adult_content_likelihood/_rank`, `violent_content_likelihood/_rank`; `face_count`, `object_count`, `label_count`, `max_face_joy`; `gcs_enriched_detectors` |
+| `_Image` | `id`, `dataset_name`, `gcs_bucket`, `gcs_object_name`, `gcs_generation`, `width`, `height`; `adult_content_likelihood/_rank`, `violent_content_likelihood/_rank`; `face_count`, `object_count`, `label_count`, `max_face_joy`, `min_face_joy`; `gcs_enriched_detectors` |
 | object `_BoundingBox` | `object_name`, `score`, `area_fraction`, `knowledge_graph_id`, `annotation_source = gcs-object-detector` |
 | face `_BoundingBox` | `joy`, `sorrow`, `anger`, `surprise`, `pan/roll/tilt_angle`, `blurred`, `under_exposed`, `headwear`, `detection_confidence`, `area_fraction`, `landmarks_json` (all 34 landmarks), `annotation_source = gcs-face-detector` |
 
@@ -140,7 +140,7 @@ for any schema).
 ```bash
 python graph_viz.py schema                                    # classes and connections with live counts
 python graph_viz.py node _Image --where gcs_object_stem=10028 --label _Image=gcs_object_stem --open
-python graph_viz.py query queries/06_happy_frontal_faces.json --label _Image=gcs_object_stem --open
+python graph_viz.py query queries/07_happy_frontal_faces.json --label _Image=gcs_object_stem --open
 ```
 
 Click a node for its properties, its picture with every stored box drawn over it, and the query that fetches it.

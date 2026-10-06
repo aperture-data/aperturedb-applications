@@ -109,7 +109,10 @@ def enrichment_query(image, dataset, parsed, already=(), replace=False, now=None
             did = det_id(image, "face", item["index"])
             q.append(_box(image, dataset, did, item, FACE_SOURCE))
         summary["face_count"] = len(faces)
-        summary["max_face_joy"] = max([f["properties"].get("joy", 0.0) for f in faces], default=0.0)
+        joys = [f["properties"].get("joy", 0.0) for f in faces]
+        summary["max_face_joy"] = max(joys, default=0.0)
+        if joys:  # absent for posters without faces, so "everyone is happy" never matches an empty poster
+            summary["min_face_joy"] = min(joys)
 
     if SAFETY_KEY in parsed:
         summary.update(parsed[SAFETY_KEY])

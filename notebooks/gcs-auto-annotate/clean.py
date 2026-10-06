@@ -27,7 +27,7 @@ from parsers import FACE_SOURCE, OBJECT_SOURCE
 SUMMARY = {
     "label": ["label_count"],
     "object": ["object_count"],
-    "face": ["face_count", "max_face_joy"],
+    "face": ["face_count", "max_face_joy", "min_face_joy"],
     "safety": ["adult_content_likelihood", "adult_content_rank",
                "violent_content_likelihood", "violent_content_rank"],
 }
