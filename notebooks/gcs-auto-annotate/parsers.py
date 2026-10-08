@@ -20,7 +20,11 @@ ALL_KEYS = [LABEL_KEY, OBJECT_KEY, FACE_KEY, SAFETY_KEY]
 OBJECT_SOURCE = "gcs-object-detector"
 FACE_SOURCE = "gcs-face-detector"
 
-DEFAULT_CONFIDENCE_THRESHOLD = 0.5
+# Lowest object score that is stored; boxes between STORE_THRESHOLD and CONFIDENT_THRESHOLD stay in the database so the
+# cut-off can be raised or lowered in a query without calling Google again.
+STORE_THRESHOLD = 0.3
+CONFIDENT_THRESHOLD = 0.5
+DEFAULT_CONFIDENCE_THRESHOLD = STORE_THRESHOLD
 
 # Vision-style Likelihood enum. The rank makes ">= POSSIBLE" expressible as a numeric constraint.
 LIKELIHOOD_RANK = {
@@ -117,7 +121,7 @@ def parse_labels(context):
     return out
 
 
-def parse_objects(context, width, height, threshold=DEFAULT_CONFIDENCE_THRESHOLD):
+def parse_objects(context, width, height, threshold=STORE_THRESHOLD):
     """Returns (kept, all_scores). Proposals below ``threshold`` are dropped."""
     kept, scores = [], []
     for i, ann in enumerate(_group(context, "objectAnnotationGroup", "objectAnnotations")):

@@ -2,7 +2,15 @@
   {
     "FindBoundingBox": {
       "_ref": 1,
-      "with_label": "Logo"
+      "with_label": "Logo",
+      "constraints": [
+        "all",
+        [
+          "$score",
+          ">=",
+          0.5
+        ]
+      ]
     }
   },
   {

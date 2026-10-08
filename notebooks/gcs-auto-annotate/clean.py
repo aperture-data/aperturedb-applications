@@ -33,7 +33,7 @@ SUMMARY = {
 }
 BOX_SOURCE = {"object": OBJECT_SOURCE, "face": FACE_SOURCE}
 ENRICHMENT_STAMP = ["gcs_enriched_at"]
-MARKER = "gcs_enriched_detectors"
+MARKER = "gcs_detectors"
 
 
 def count(client, command, **params):
@@ -68,17 +68,20 @@ def clean_detectors(client, dataset, detectors):
     if cmds:
         client.query(cmds)
 
-    # The marker lists the detectors stored per image.  Few distinct values exist, so rewrite
-    # them group by group instead of image by image.
+    # ``gcs_detectors`` lists the detectors stored per image. Few distinct lists exist, so rewrite them group by
+    # group (in chunks of ids) instead of image by image.
     resp, _ = client.query([{"FindImage": {"constraints": scope, "blobs": False,
-                                           "results": {"list": [MARKER]}}}])
-    seen = {e.get(MARKER) for e in resp[0]["FindImage"].get("entities", [])}
+                                           "results": {"list": ["id", MARKER]}}}])
+    groups = {}
+    for e in resp[0]["FindImage"].get("entities", []):
+        keep = tuple(d for d in (e.get(MARKER) or []) if d not in detectors)
+        groups.setdefault(keep, []).append(e["id"])
+    for keep, ids in groups.items():
+        props = {"properties": {MARKER: list(keep)}} if keep else {"remove_props": [MARKER, *ENRICHMENT_STAMP]}
+        for i in range(0, len(ids), 500):
+            client.query([{"UpdateImage": {
+                "constraints": {**scope, "id": ["in", ids[i:i + 500]]}, **props}}])
     drop = [p for d in detectors for p in SUMMARY[d]]
-    for old in filter(None, seen):
-        keep = sorted(set(old.split(",")) - detectors)
-        props = {"properties": {MARKER: ",".join(keep)}} if keep else {"remove_props": [MARKER, *ENRICHMENT_STAMP]}
-        client.query([{"UpdateImage": {
-            "constraints": {**scope, MARKER: ["==", old]}, **props}}])
     client.query([{"UpdateImage": {"constraints": scope, "remove_props": drop}}])
 
 

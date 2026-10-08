@@ -26,7 +26,7 @@ name: gcs-auto-annotate
 services:
 
   aperturedb:
-    image: ${APERTUREDB_IMAGE:-aperturedata/aperturedb-community:latest}
+    image: ${APERTUREDB_IMAGE:-aperturedata/aperturedb-community:v0.19.14}
     restart: unless-stopped
     environment:
       ADB_MASTER_KEY: "${APERTUREDB_PASSWORD:-admin}"

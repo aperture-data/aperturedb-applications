@@ -22,6 +22,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 
+MIN_OBJECT_SCORE = 0.5  # object boxes are stored from 0.3 (see parsers.STORE_THRESHOLD); queries use the confident ones
+
 
 def _scope(dataset):
     return {"dataset_name": ["==", dataset]} if dataset else None
@@ -50,11 +52,12 @@ def labels_containing(term="action", min_score=0.6, dataset=None, images=True, l
     ]
 
 
-def people_by_name(pattern="(?i)^(man|woman|girl|boy)$", dataset=None, images=False, limit=12):
+def people_by_name(pattern="(?i)^(man|woman|girl|boy)$", dataset=None, images=False, limit=12, min_score=MIN_OBJECT_SCORE):
     """Posters with an object box whose name matches a regular expression (RE2, ``(?i)`` = any case)."""
     return [
         {"FindBoundingBox": {"_ref": 1,
-                             "constraints": _all(["$object_name", "regex", pattern], _ds(dataset))}},
+                             "constraints": _all(["$object_name", "regex", pattern],
+                                                 ["$score", ">=", min_score], _ds(dataset))}},
         {"FindImage": {"is_connected_to": {"ref": 1}, "blobs": images,
                        "results": {"list": ["gcs_object_name", "object_count", "face_count"],
                                    "limit": limit}}},
@@ -82,6 +85,22 @@ def label_shapes(dataset=None, limit=25):
                              ["$description", "istarts_with", "for "]], _ds(dataset)),
         "results": {"list": ["description", "score"], "limit": limit},
         "sort": {"key": "score", "order": "descending"}}}]
+
+
+def label_word_search(words="animatd film", max_edits=1, mode="any", min_score=0.5, dataset=None, images=False, limit=12):
+    """Word search over label text with typo tolerance (full-text index): 'animatd' still finds 'Animated cartoon'.
+
+    ``fulltext`` returns a relevance score; ``> 0`` keeps the matches. Unlike ``icontains`` it matches whole words
+    (no substrings), ignores case and forgives up to ``max_edits`` typos per word.
+    """
+    options = {"mode": "adaptive", "max_edits": max_edits}
+    return [
+        {"FindEntity": {"_ref": 1, "with_class": "GCSLabel",
+                        "constraints": _all([{"fulltext": ["$description", words, mode, options]}, ">", 0],
+                                            ["$score", ">=", min_score], _ds(dataset))}},
+        {"FindImage": {"is_connected_to": {"ref": 1}, "blobs": images,
+                       "results": {"list": ["gcs_object_name", "label_count", "face_count"], "limit": limit}}},
+    ]
 
 
 def file_name_search(prefix="tmdb/posters/10", dataset=None, limit=20):
@@ -239,17 +258,34 @@ def happy_faces_on_tagged_posters(term="film", min_joy=0.3, dataset=None, limit=
 
 
 def label_and_object_together(label="clothing", object_name="person", dataset=None, images=False,
-                              limit=12):
+                              limit=12, min_score=MIN_OBJECT_SCORE):
     """Posters connected to a matching label *and* a matching object box (``all`` of two refs)."""
     return [
         {"FindEntity": {"_ref": 1, "with_class": "GCSLabel",
                         "constraints": _all(["$description", "icontains", label], _ds(dataset))}},
         {"FindBoundingBox": {"_ref": 2,
                              "constraints": _all(["$object_name", "icontains", object_name],
-                                                 _ds(dataset))}},
+                                                 ["$score", ">=", min_score], _ds(dataset))}},
         {"FindImage": {"is_connected_to": {"all": [{"ref": 1}, {"ref": 2}]}, "blobs": images,
                        "results": {"list": ["gcs_object_name", "face_count", "object_count"],
                                    "limit": limit}}},
+    ]
+
+
+def objects_between(low=0.3, high=0.5, dataset=None, limit=12):
+    """Object boxes stored but below the 0.5 cut-off, found through the properties of the ``HasDetection`` edge.
+
+    Because proposals are stored from 0.3 with their score on the edge, moving the cut-off needs no re-ingestion:
+    change ``high`` (or ``low``) and run again.
+    """
+    return [
+        {"FindImage": {"_ref": 1, "blobs": False,
+                       "constraints": _scope(dataset)} if dataset else {"_ref": 1, "blobs": False}},
+        {"FindBoundingBox": {
+            "is_connected_to": {"ref": 1, "connection_class": "HasDetection",
+                                "constraints": {"detector": ["==", "object"], "score": [">=", low, "<", high]}},
+            "results": {"list": ["object_name", "score", "image_id"], "limit": limit},
+            "sort": {"key": "score", "order": "descending"}}},
     ]
 
 
@@ -293,12 +329,12 @@ def why_flagged(min_rank=3, dataset=None, limit=5):
 
 # --------------------------------------------------------------------------- spatial
 
-def overlap_candidates(object_name="Logo", dataset=None, limit=500):
+def overlap_candidates(object_name="Logo", dataset=None, limit=500, min_score=MIN_OBJECT_SCORE):
     """Posters that have both a box of ``object_name`` and a face box (candidates for IoU)."""
-    first = {"_ref": 1, "with_label": object_name}
+    first = {"_ref": 1, "with_label": object_name, "constraints": _all(["$score", ">=", min_score], _ds(dataset))}
     second = {"_ref": 2, "with_label": "face"}
     if dataset:
-        first["constraints"] = second["constraints"] = _all(_ds(dataset))
+        second["constraints"] = _all(_ds(dataset))
     return [
         {"FindBoundingBox": first},
         {"FindBoundingBox": second},
@@ -307,7 +343,7 @@ def overlap_candidates(object_name="Logo", dataset=None, limit=500):
     ]
 
 
-def object_face_overlap(image_id, object_name="Logo"):
+def object_face_overlap(image_id, object_name="Logo", min_score=MIN_OBJECT_SCORE):
     """IoU matrix between the object boxes and the face boxes of ONE poster (RegionIoU).
 
     Rows are the object boxes, columns the faces; a non-zero entry means they overlap.
@@ -315,6 +351,7 @@ def object_face_overlap(image_id, object_name="Logo"):
     return [
         {"FindImage": {"_ref": 1, "blobs": False, "constraints": {"id": ["==", image_id]}}},
         {"FindBoundingBox": {"_ref": 2, "image_ref": 1, "with_label": object_name,
+                             "constraints": ["all", ["$score", ">=", min_score]],
                              "coordinates": True, "results": {"list": ["score"]}}},
         {"FindBoundingBox": {"_ref": 3, "image_ref": 1, "with_label": "face",
                              "coordinates": True, "results": {"list": ["joy"]}}},
@@ -335,6 +372,7 @@ CATALOG = [
     ("people_by_name", "String search", people_by_name, "RE2 regular expression over object names"),
     ("label_search_boolean", "String search", label_search_boolean, "any / not / score combined in one text search"),
     ("label_shapes", "String search", label_shapes, "like and istarts_with patterns"),
+    ("label_word_search", "String search", label_word_search, "Full-text word search over labels with typo tolerance"),
     ("file_name_search", "String search", file_name_search, "Prefix search over object names (trigram index)"),
     ("happy_frontal_faces", "Expressions", happy_frontal_faces, "Property-vs-property comparison plus abs() inside the database"),
     ("delighted_faces", "Expressions", delighted_faces, "Arithmetic over properties"),
@@ -343,6 +381,7 @@ CATALOG = [
     ("not_yet_enriched", "Expressions", not_yet_enriched, "is_missing as a data-quality check"),
     ("happy_faces_on_tagged_posters", "Graph traversal", happy_faces_on_tagged_posters, "label -> poster -> faces in one request"),
     ("label_and_object_together", "Graph traversal", label_and_object_together, "Posters connected to a label AND an object box"),
+    ("objects_between", "Graph traversal", objects_between, "Stored-but-below-cut-off objects, via edge properties (no re-ingest to move the threshold)"),
     ("crowded_posters", "Graph traversal", crowded_posters, "Many faces and many objects, from stored counts"),
     ("poster_neighbourhood", "Graph traversal", poster_neighbourhood, "Everything attached to one poster"),
     ("why_flagged", "Graph traversal", why_flagged, "Flagged posters plus the labels that explain them"),

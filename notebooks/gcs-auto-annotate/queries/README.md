@@ -25,24 +25,26 @@ Paste any of these JSON files into the UI's query editor (or run them from `quer
 - `07_people_by_name.json` - RE2 regular expression over object names
 - `08_label_search_boolean.json` - any / not / score combined in one text search
 - `09_label_shapes.json` - like and istarts_with patterns
-- `10_file_name_search.json` - Prefix search over object names (trigram index)
+- `10_label_word_search.json` - Full-text word search over labels with typo tolerance
+- `11_file_name_search.json` - Prefix search over object names (trigram index)
 
 ## Expressions
 
-- `11_happy_frontal_faces.json` - Property-vs-property comparison plus abs() inside the database
-- `12_delighted_faces.json` - Arithmetic over properties
-- `13_dominant_faces.json` - Posters dominated by one confident face
-- `14_sensitive_content.json` - Moderation across two detectors' ranks
-- `15_not_yet_enriched.json` - is_missing as a data-quality check
+- `12_happy_frontal_faces.json` - Property-vs-property comparison plus abs() inside the database
+- `13_delighted_faces.json` - Arithmetic over properties
+- `14_dominant_faces.json` - Posters dominated by one confident face
+- `15_sensitive_content.json` - Moderation across two detectors' ranks
+- `16_not_yet_enriched.json` - is_missing as a data-quality check
 
 ## Graph traversal
 
-- `16_happy_faces_on_tagged_posters.json` - label -> poster -> faces in one request
-- `17_label_and_object_together.json` - Posters connected to a label AND an object box
-- `18_crowded_posters.json` - Many faces and many objects, from stored counts
-- `19_poster_neighbourhood.json` - Everything attached to one poster
-- `20_why_flagged.json` - Flagged posters plus the labels that explain them
+- `17_happy_faces_on_tagged_posters.json` - label -> poster -> faces in one request
+- `18_label_and_object_together.json` - Posters connected to a label AND an object box
+- `19_objects_between.json` - Stored-but-below-cut-off objects, via edge properties (no re-ingest to move the threshold)
+- `20_crowded_posters.json` - Many faces and many objects, from stored counts
+- `21_poster_neighbourhood.json` - Everything attached to one poster
+- `22_why_flagged.json` - Flagged posters plus the labels that explain them
 
 ## Spatial
 
-- `21_overlap_candidates.json` - Posters with both a Logo and a face box
+- `23_overlap_candidates.json` - Posters with both a Logo and a face box

@@ -8,6 +8,11 @@
           "$object_name",
           "regex",
           "(?i)^(man|woman|girl|boy)$"
+        ],
+        [
+          "$score",
+          ">=",
+          0.5
         ]
       ]
     }

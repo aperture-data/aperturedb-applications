@@ -30,6 +30,7 @@ def db():
         client.query([{"GetStatus": {}}])
     except Exception as exc:
         pytest.skip(f"no ApertureDB reachable: {exc}")
+    model.ensure_indexes(client)
     return client
 
 
@@ -79,6 +80,12 @@ def run(db, query):
     return response
 
 
+@pytest.fixture(autouse=True)
+def confident_at_0_4(monkeypatch):
+    """The fixture's best object scores 0.43, so count 'confident' objects from 0.4 to have something to assert."""
+    monkeypatch.setattr(model, "CONFIDENT_THRESHOLD", 0.4)
+
+
 def test_enrich_is_idempotent(db, dataset):
     image = add_image(db, dataset)
     run(db, model.enrichment_query(image, dataset, parsed()))
@@ -90,10 +97,10 @@ def test_enrich_is_idempotent(db, dataset):
 
     props = run(db, [{"FindImage": {"blobs": False, "constraints": {"id": ["==", image]},
                                     "results": {"all_properties": True}}}])[0]["FindImage"]["entities"][0]
-    assert props["face_count"] == 1 and props["object_count"] == 3 and props["label_count"] == 6
+    assert props["face_count"] == 1 and props["object_count"] == 1 and props["label_count"] == 6  # 3 stored, 1 >= 0.4
     assert props["min_face_joy"] == props["max_face_joy"]  # one face
     assert props["adult_content_rank"] == 3
-    assert props["gcs_enriched_detectors"] == "face,label,object,safety"
+    assert props["gcs_detectors"] == ["face", "label", "object", "safety"]
 
 
 def test_replace_applies_a_new_threshold(db, dataset):
@@ -116,7 +123,7 @@ def test_clean_enrichment_keeps_images(db, dataset):
     run(db, model.enrichment_query(image, dataset, parsed()))
     assert clean.main(["--enrichment", "--bucket", "b", "--dataset-name", dataset, "--yes"]) == 0
     assert counts(db, dataset) == {"labels": 0, "boxes": 0, "images": 1}
-    props = run(db, [{"FindImage": {"blobs": False, "constraints": ["$gcs_enriched_detectors", "is_missing"],
+    props = run(db, [{"FindImage": {"blobs": False, "constraints": ["$gcs_detectors", "is_missing"],
                                     "results": {"count": True}}}])[0]["FindImage"]
     assert props["count"] >= 1  # summaries removed, so enrich.py would process it again
 
@@ -133,14 +140,14 @@ def test_clean_one_detector_leaves_the_rest(db, dataset):
 
     assert counts(db, dataset) == {"labels": 6, "boxes": 3, "images": 1}  # only the face box went
     props = image_props(db, image)
-    assert props["gcs_enriched_detectors"] == "label,object,safety"
+    assert props["gcs_detectors"] == ["label", "object", "safety"]
     assert "face_count" not in props and "max_face_joy" not in props and "min_face_joy" not in props
-    assert props["object_count"] == 3 and props["adult_content_rank"] == 3
+    assert props["object_count"] == 1 and props["adult_content_rank"] == 3
 
     # and the next enrich of just that detector restores it
     run(db, model.enrichment_query(image, dataset, parsed(only=("face",)), already={"label", "object", "safety"}))
     assert counts(db, dataset)["boxes"] == 4
-    assert image_props(db, image)["gcs_enriched_detectors"] == "face,label,object,safety"
+    assert image_props(db, image)["gcs_detectors"] == ["face", "label", "object", "safety"]
 
 
 def test_clean_several_detectors_and_safety(db, dataset):
@@ -149,7 +156,7 @@ def test_clean_several_detectors_and_safety(db, dataset):
     assert clean.main(["--detector", "label,safety", "--bucket", "b", "--dataset-name", dataset, "--yes"]) == 0
     assert counts(db, dataset) == {"labels": 0, "boxes": 4, "images": 1}
     props = image_props(db, image)
-    assert props["gcs_enriched_detectors"] == "face,object"
+    assert props["gcs_detectors"] == ["face", "object"]
     assert "adult_content_rank" not in props and "label_count" not in props
 
 
@@ -171,3 +178,32 @@ def test_string_and_expression_queries_over_stored_data(db, dataset):
                 constraints=["all", ["$dataset_name", "==", dataset], ["$joy", "<", "$sorrow"]]) in (0, 1)
     assert find("FindBoundingBox", constraints=["all", ["$dataset_name", "==", dataset],
                                                  ["$object_name", "regex", "(?i)^(logo|person)$"]]) == 3
+
+
+def test_every_box_has_a_detection_edge_with_its_score(db, dataset):
+    image = add_image(db, dataset)
+    run(db, model.enrichment_query(image, dataset, parsed(threshold=0.1)))
+    run(db, model.enrichment_query(image, dataset, parsed(threshold=0.1)))  # re-run: no duplicate edges
+
+    def count(command, **params):
+        return run(db, [{command: {"results": {"count": True}, **params}}])[0][command]["count"]
+
+    assert count("FindConnection", with_class=model.DETECTION_CONNECTION,
+                 constraints={"det_id": ["in", [parsers.det_id(image, "object", i) for i in range(6)] +
+                                         [parsers.det_id(image, "face", 0)]]}) == 4  # 3 objects + 1 face
+
+    import queries
+    low = run(db, queries.objects_between(0.1, 0.4, dataset=dataset))
+    boxes = low[-1]["FindBoundingBox"]["entities"]
+    assert sorted(b["object_name"] for b in boxes) == ["Logo", "Person"]       # 0.13 and 0.10; the 0.43 Logo is above
+    assert all(0.1 <= b["score"] < 0.4 for b in boxes)
+
+
+def test_word_search_tolerates_typos(db, dataset):
+    image = add_image(db, dataset)
+    run(db, model.enrichment_query(image, dataset, parsed()))
+    import queries
+    word = parsers.parse_labels(fixture("label"))[0]["properties"]["description"]
+    typo = word[:-1] + ("x" if word[-1] != "x" else "y")
+    hit = run(db, queries.label_word_search(words=typo, max_edits=1, min_score=0.0, dataset=dataset, limit=5))
+    assert hit[-1]["FindImage"].get("entities"), (word, typo)

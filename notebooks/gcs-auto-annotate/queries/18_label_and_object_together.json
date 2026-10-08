@@ -22,6 +22,11 @@
           "$object_name",
           "icontains",
           "person"
+        ],
+        [
+          "$score",
+          ">=",
+          0.5
         ]
       ]
     }

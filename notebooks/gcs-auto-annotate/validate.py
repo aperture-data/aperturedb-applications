@@ -62,7 +62,7 @@ def main(argv=None):
         short = model.DETECTOR_NAMES[key]
         stored = count(client, "FindImage", blobs=False,
                        constraints=["all", ["$dataset_name", "==", dataset],
-                                    ["$gcs_enriched_detectors", "icontains", short]])
+                                    [short, "in", "$gcs_detectors"]])
         report(OK if stored else WARN, f"{short:7} stored for {stored}/{images} images")
 
     boxes = count(client, "FindBoundingBox", constraints=scope)
@@ -82,11 +82,11 @@ def main(argv=None):
         meta_ok = mismatches = 0
         resp, _ = client.query([{"FindImage": {
             "constraints": scope, "blobs": False,
-            "results": {"list": ["gcs_object_name", "gcs_enriched_detectors"], "limit": args.sample}}}])
+            "results": {"list": ["gcs_object_name", "gcs_detectors"], "limit": args.sample}}}])
         for e in resp[0]["FindImage"].get("entities", []):
             present = {model.DETECTOR_NAMES[k] for k in parsers.detectors_present(
                 gcs.object_metadata(bucket, e["gcs_object_name"]))}
-            stored = {d for d in (e.get("gcs_enriched_detectors") or "").split(",") if d}
+            stored = set(e.get("gcs_detectors") or [])
             if present <= stored:
                 meta_ok += 1
             else:

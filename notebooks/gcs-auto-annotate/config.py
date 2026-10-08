@@ -44,11 +44,16 @@ def add_common_args(parser: argparse.ArgumentParser):
     parser.add_argument("--bucket", help="GCS bucket (default: $GCS_BUCKET)")
     parser.add_argument("--prefix", default=None, help="folder inside the bucket (default: $GCS_PREFIX or whole bucket)")
     parser.add_argument("--dataset-name", help="label that scopes this run's data (default: <bucket>/<prefix>)")
+    parser.add_argument("--cache-dir", default=None,
+                        help="read Google data from (and keep it in) this folder when present; default: always "
+                             "live from Google ($GCS_CACHE_DIR). Fill it with fetch.py")
     return parser
 
 
 def resolve_dataset(args):
-    """Fill bucket / prefix / dataset_name from args or environment."""
+    """Fill bucket / prefix / dataset_name from args or environment (and switch the Google cache on if asked)."""
+    import gcs
+    gcs.use_cache(getattr(args, "cache_dir", None) or os.environ.get("GCS_CACHE_DIR"))
     bucket = args.bucket or os.environ.get("GCS_BUCKET")
     if not bucket:
         raise SystemExit("No bucket given: pass --bucket or set GCS_BUCKET (see .env.example).")

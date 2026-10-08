@@ -11,6 +11,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import config  # noqa: E402
+import model  # noqa: E402
 import queries  # noqa: E402
 
 
@@ -21,6 +22,7 @@ def client():
         db.query([{"GetStatus": {}}])
     except Exception as exc:  # no database running
         pytest.skip(f"no ApertureDB reachable: {exc}")
+    model.ensure_indexes(db)
     return db
 
 

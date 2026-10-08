@@ -9,6 +9,7 @@ is new in the folder.  Run ``enrich.py`` afterwards to attach the GCS auto-annot
 import argparse
 import io
 import sys
+import time
 
 from aperturedb.ParallelLoader import ParallelLoader
 from PIL import Image
@@ -89,7 +90,11 @@ def main(argv=None):
 
     data = GCSImages(bucket, dataset, todo)
     loader = ParallelLoader(client)
+    started = time.perf_counter()
     loader.ingest(data, batchsize=4, numthreads=args.threads, stats=True)
+    elapsed = time.perf_counter() - started
+    print(f"Ingest wall time: {elapsed:.1f} s for {len(todo)} images ({len(todo) / max(elapsed, 1e-9):.1f} images/s, "
+          f"{args.threads} threads{', Google data from the local cache' if args.cache_dir or __import__('os').environ.get('GCS_CACHE_DIR') else ', live from Google'})")
 
     failed = len(data.failed) + loader.error_counter
     print(f"\nIngested {len(todo) - len(data.failed)} images into dataset '{dataset}'.")

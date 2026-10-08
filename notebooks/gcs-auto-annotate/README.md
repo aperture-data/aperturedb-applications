@@ -50,7 +50,8 @@ The scripts talk to **any** ApertureDB; which one is decided by a key, nothing e
 | `docker compose --profile notebook up -d` | + JupyterLab at http://localhost:8899 (password `test`, or set `NOTEBOOK_PASSWORD`) with this folder under `gcs-auto-annotate/` and the connection already set |
 | `docker compose --profile ui up -d` | + the ApertureDB web UI at http://localhost:8088 (admin / admin). The UI image is not on public Docker Hub: you need access to it, or set `WEBUI_IMAGE`. |
 
-Set `APERTUREDB_IMAGE` to pin or try another server image (for example `aperturedata/aperturedb-community:dev`).
+The compose file pins ApertureDB **v0.19.14** (the first release with array properties and full-text search; this demo
+needs it for the full-text index and the `gcs_detectors` list). Set `APERTUREDB_IMAGE` to try another server image.
 
 The Community Edition image is licensed for evaluation and development only
 ([terms](https://www.aperturedata.io/docker-license)). `docker compose down` stops it, `docker compose down -v`
@@ -77,6 +78,7 @@ All are safe to re-run, and each takes `--bucket`, `--prefix`, `--dataset-name` 
 |---|---|
 | `ingest.py` | Lists images under the prefix and loads the ones not stored yet (`--limit N` for a trial). Pictures are downloaded with your Google credentials; the database never needs them. |
 | `enrich.py` | One cheap metadata call per image says which detectors have finished; only those not yet stored are fetched. Writes labels, object and face boxes, content-safety values. |
+| `fetch.py` | Optional. Copies the bucket folder and the detector results into a local `--cache-dir`; `ingest.py` / `enrich.py --cache-dir` then read from it instead of Google. Prints how long the Google side took, so the Google and ApertureDB times can be told apart. Without `--cache-dir` everything is live from Google. |
 | `validate.py` | Counts per detector, orphan check, and every demo query run against your data. `--gcs` also compares with the bucket. |
 | `clean.py` | Removes data in stages (below). |
 | `queries.py --export` | Writes every demo query to `queries/*.json`. |
@@ -85,7 +87,7 @@ All are safe to re-run, and each takes `--bucket`, `--prefix`, `--dataset-name` 
 **Update selectively, without re-ingesting:**
 
 ```bash
-python enrich.py --only object --replace --confidence-threshold 0.7   # redo one detector
+python enrich.py --only object --replace --confidence-threshold 0.2   # redo one detector (store more)
 python enrich.py --only face,safety                                   # add just these
 python clean.py --detector face --yes                                 # drop one detector's data
 python clean.py --enrichment --yes                                    # drop all detections, keep the images
@@ -102,15 +104,15 @@ make it unnecessary.
 ## Data model
 
 ```
-_Image ──HasLabel──▶ GCSLabel               description, score, topicality, knowledge_graph_id
-  ▲
+_Image ──HasLabel──────▶ GCSLabel           description, score, topicality, knowledge_graph_id
+  ▲  └──HasDetection──▶ _BoundingBox         edge properties: detector, score, stored_from
   └──── _BoundingBox                        object boxes (label = object name) and face boxes (label "face")
 ```
 
 | Stored on | Properties |
 |---|---|
-| `_Image` | `id`, `dataset_name`, `gcs_bucket`, `gcs_object_name`, `gcs_generation`, `width`, `height`; `adult_content_likelihood/_rank`, `violent_content_likelihood/_rank`; `face_count`, `object_count`, `label_count`, `max_face_joy`, `min_face_joy`; `gcs_enriched_detectors` |
-| object `_BoundingBox` | `object_name`, `score`, `area_fraction`, `knowledge_graph_id`, `annotation_source = gcs-object-detector` |
+| `_Image` | `id`, `dataset_name`, `gcs_bucket`, `gcs_object_name`, `gcs_generation`, `width`, `height`; `adult_content_likelihood/_rank`, `violent_content_likelihood/_rank`; `face_count`, `object_count`, `label_count`, `max_face_joy`, `min_face_joy`; `gcs_detectors` (list) |
+| object `_BoundingBox` | `object_name`, `score` (stored from 0.3), `area_fraction`, `knowledge_graph_id`, `annotation_source = gcs-object-detector` |
 | face `_BoundingBox` | `joy`, `sorrow`, `anger`, `surprise`, `pan/roll/tilt_angle`, `blurred`, `under_exposed`, `headwear`, `detection_confidence`, `area_fraction`, `landmarks_json` (all 34 landmarks), `annotation_source = gcs-face-detector` |
 
 Likelihood enums also get a numeric `_rank` (1 = very unlikely ... 5 = very likely) so "at least POSSIBLE" is a
@@ -155,10 +157,11 @@ so the browser needs internet access.
 ## What the detectors return
 
 From a first sample of 20 posters: the object detector returns every proposal it considers (63 per image on
-average, scores from 0.01 up); `enrich.py` stores those scoring at least **0.5**, i.e. 152 of 1,263 (12%). Labels
+average, scores from 0.01 up); `enrich.py` stores those scoring at least **0.3** (with their score on the `HasDetection`
+edge), and queries use the confident ones, **0.5** and up. Labels
 come as exactly 50 per image, down to scores around 0.25. Content safety has two fields (adult, violent).
 `enrich.py` writes `enrich_stats.json` with the full score histogram, including what was not stored, so you can
-judge the threshold (`--confidence-threshold`, default 0.5); the notebook shows it.
+judge the threshold (`--confidence-threshold`, default 0.3); the notebook shows it.
 
 ## Tests
 
@@ -182,7 +185,10 @@ Tests that need a database skip themselves if none is reachable; none of them ne
 |---|---|
 | Own `ingest.py` / `enrich.py` instead of the published workflow image | That image loads a whole bucket (no folder filter), and the detectors are still evolving, so a small pipeline that is easy to reshape fits better for now. The parsing is isolated in `parsers.py` and the data model in `model.py` so both can move into a workflow or a native integration later. |
 | Detections come straight from the GCS API; BigQuery is not required | Fewest moving parts for someone trying the demo: bucket read access and a login. Fetching is isolated in `gcs.py`, so a BigQuery source can be added without touching parsing or the model. |
-| Object proposals under 0.5 are not stored | Most proposals are low-confidence noise. 0.5 matches other detection demos in this organisation; it is configurable, and `enrich_stats.json` keeps the full score histogram so the choice can be reviewed. |
+| Object proposals are stored from 0.3; queries use 0.5 | Most proposals below 0.3 are noise, but the band between 0.3 and 0.5 is worth keeping: the score sits on an explicit `HasDetection` edge, so the cut-off can move in a query without calling Google again. Both numbers are configurable, and `enrich_stats.json` keeps the full score histogram so the choice can be reviewed. |
+| Labels stay one node per label (no array property) | Per-label counts (the vocabulary), shared-label traversal, label nodes in the graph views, per-label scores and substring search (`icontains`) all work on nodes; an array property would be faster to load but loses them. |
+| `gcs_detectors` is a list property | The detectors stored per image, used to skip finished work on a re-run. |
+| Indexes: a `type` index next to every ordered / trigram index | ApertureDB 0.19.14 only uses an ordered or trigram index together with a `type` index on the same property; `model.ensure_indexes` creates both, plus a full-text index on the label text. |
 | Face landmarks as one JSON property, no polygons | A polygon is 2D with a single label, so it cannot hold landmark depth or names, and the points do not form a closed shape. Nothing in phase 1 needs eye or mouth regions. |
 | Likelihood enums also stored as a numeric `_rank`; counts and maxima stored on the image | "At least POSSIBLE" becomes a range filter, and "crowded posters" becomes a plain filter. |
 | Idempotent writes | Image ids hash the object path; every box and label has a deterministic `det_id` and uses `if_not_found`. Re-running never duplicates, which is also how a growing bucket is followed. |
@@ -199,6 +205,6 @@ Tests that need a database skip themselves if none is reachable; none of them ne
 * **More detector types** such as PDF and video: new branches in `parsers.py` and `model.py`.
 * **A BigQuery source** behind `gcs.py` for very large buckets.
 * **Polygons for facial regions** (eyes, mouth) if a query needs them; landmarks stay available either way.
-* **Edge properties** such as label confidence on `HasLabel`, enabling edge-centric queries with `FindConnection`
+* **Edge properties** on `HasLabel` (the box edges already carry them, see `HasDetection`), enabling edge-centric queries with `FindConnection`
   and `is_endpoint_of`.
 * **`graph_viz.py` as a shared tool:** it is schema-agnostic and could live in a common package.

@@ -136,7 +136,7 @@ def test_expand_caps_per_source_and_sorts(db, poster):
     assert labels[0]["label"] == "Golfer"                      # best score first
     assert len([n for n in nodes if n["cls"] == "_BoundingBox"]) == 3   # the cap applies per class: 4 stored
     assert all(e[0] == nodes[0]["id"] or e[1] == nodes[0]["id"] for e in edges)
-    assert {e[2] for e in edges} == {"HasLabel", "_BoundingBoxToImage"}
+    assert {e[2] for e in edges} == {"HasLabel", "_BoundingBoxToImage", "HasDetection"}
 
     roomy, _ = gv.expand(db, start(db, image), per_class=10)
     assert len([n for n in roomy if n["cls"] == "_BoundingBox"]) == 4   # 3 objects + 1 face

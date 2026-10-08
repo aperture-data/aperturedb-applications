@@ -317,11 +317,15 @@ def _dims(props):
 def _attach_overlays(out_nodes, edges, node_color):
     """Bounding boxes of each image, drawn over it in the details panel."""
     by_id = {n["id"]: n for n in out_nodes}
+    drawn = set()
     for src, dst, _, _ in map(_edge4, edges):
         for image_id, box_id in ((src, dst), (dst, src)):
             image, box = by_id.get(image_id), by_id.get(box_id)
             if not image or not box or image["cls"] != "_Image" or box["cls"] != "_BoundingBox":
                 continue
+            if (image_id, box_id) in drawn:  # several edge classes may join the same pair
+                continue
+            drawn.add((image_id, box_id))
             c = (box["props"] or {}).get("_coordinates")
             if isinstance(c, dict) and {"x", "y", "width", "height"} <= set(c):
                 image.setdefault("overlays", []).append({
@@ -354,6 +358,15 @@ GRAPH_HTML_TEMPLATE = r"""<!DOCTYPE html>
   #panel { bottom: 18px; right: 18px; width: 400px; max-height: 68vh; overflow-y: auto; font-size: 15px;
            background: rgba(10,14,30,0.96); border: 1px solid rgba(255,255,255,0.18); border-radius: 12px;
            padding: 16px 18px; box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
+  #panel .head { display: flex; align-items: flex-start; gap: 10px; }
+  #panel .head .panel-title { flex: 1; }
+  #pclose { background: rgba(255,255,255,0.12); color: #eaeaea; border: 0; border-radius: 6px; width: 30px; height: 30px;
+            font-size: 20px; line-height: 1; cursor: pointer; flex: none; }
+  #pclose:hover { background: rgba(255,255,255,0.25); }
+  #controls { bottom: 18px; left: 14px; display: flex; gap: 8px; padding: 6px; }
+  #controls button { background: rgba(255,255,255,0.12); color: #eaeaea; border: 0; border-radius: 6px; padding: 7px 12px;
+                     font-size: 14px; cursor: pointer; }
+  #controls button:hover { background: rgba(255,255,255,0.25); }
   #panel .placeholder { color: rgba(234,234,234,0.55); font-style: italic; }
   #panel .panel-title { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 10px; }
   #panel b { color: #8ec1f0; }
@@ -375,6 +388,7 @@ GRAPH_HTML_TEMPLATE = r"""<!DOCTYPE html>
 <div id="legend" class="box"></div>
 <div id="search" class="box"><input id="q" type="search" placeholder="Search nodes..." autocomplete="off"></div>
 <div id="panel" class="box"><div class="placeholder">Click a node to see its details here.</div></div>
+<div id="controls" class="box"><button id="fit" title="Fit the whole graph in the window">Fit view</button><button id="relayout" title="Let the layout move again">Re-layout</button></div>
 <div id="graph"></div>
 <script src="https://cdn.jsdelivr.net/npm/@babel/standalone"></script>
 <script type="text/jsx" data-type="module">
@@ -427,7 +441,6 @@ function Graph() {
     window.__gv = {fg, graphData};  // handle for tests and debugging
     fg.d3Force('x', forceX(0).strength(0.07));
     fg.d3Force('y', forceY(0).strength(0.07));
-    fg.d3ReheatSimulation();
     if (preSelect) {
       const node = graphData.nodes.find((x) => x.id === preSelect);
       if (node) setClickedNode(node);
@@ -455,10 +468,28 @@ function Graph() {
     }
     setHighlightNodes(hn); setHighlightLinks(hl); setHoverNode(node || null);
   };
-  const handleClick = (node) => {
-    if (fgRef.current) { fgRef.current.centerAt(node.x, node.y, 700); fgRef.current.zoom(5, 700); }
-    setClickedNode(node);
-  };
+  // Clicking only opens the details: the view and the layout stay where they are.
+  const handleClick = (node) => setClickedNode(node);
+  const settled = React.useRef(false);
+
+  React.useEffect(() => {
+    const fg = () => fgRef.current;
+    const fit = () => { if (fg()) fg().zoomToFit(400, 90); };
+    const relayout = () => {
+      graphData.nodes.forEach((n) => { n.fx = undefined; n.fy = undefined; });
+      settled.current = false;
+      if (fg()) fg().d3ReheatSimulation();
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setClickedNode(null); };
+    document.getElementById('fit').addEventListener('click', fit);
+    document.getElementById('relayout').addEventListener('click', relayout);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.getElementById('fit').removeEventListener('click', fit);
+      document.getElementById('relayout').removeEventListener('click', relayout);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, []);
 
   React.useEffect(() => {
     document.getElementById('info').textContent = hoverNode
@@ -506,8 +537,10 @@ function Graph() {
       file = '<div class="row"><a class="openfile" target="_blank" rel="noopener" href="' + window.__lastBlobUrl + '">Open file \u2197</a></div>';
     }
     const snip = n.snippet ? '<div class="row"><b>query:</b></div><pre>' + esc(n.snippet) + '</pre>' : '';
-    el.innerHTML = '<div class="panel-title">' + esc(n.name) + '</div>' + media + file +
+    el.innerHTML = '<div class="head"><div class="panel-title">' + esc(n.name) + '</div>' +
+                   '<button id="pclose" title="Close (Esc)" aria-label="Close details">\u00d7</button></div>' + media + file +
                    '<div class="row"><b>class:</b> ' + esc(n.cls) + '</div>' + rows + snip;
+    el.querySelector('#pclose').addEventListener('click', () => setClickedNode(null));
     const img = el.querySelector('#pimg'), svg = el.querySelector('#pov');
     if (img && svg && n.overlays) {
       const draw = () => {
@@ -534,12 +567,18 @@ function Graph() {
       nodeVisibility={(n) => !hidden.has(n.cls)}
       onEngineStop={() => {
         const fg = fgRef.current;
-        if (!fg) return;
+        if (!fg || settled.current) return;
+        settled.current = true;
+        // Once the layout has settled, pin every node so nothing drifts afterwards (drag one to move it).
+        graphData.nodes.forEach((n) => { n.fx = n.x; n.fy = n.y; });
         fg.zoomToFit(500, 90);
         // a handful of nodes would otherwise fill the whole frame with huge circles
         setTimeout(() => { if (fg.zoom() > 2) fg.zoom(2, 300); }, 650);
       }}
-      cooldownTime={4000}
+      onNodeDragEnd={(n) => { n.fx = n.x; n.fy = n.y; }}
+      onBackgroundClick={() => setClickedNode(null)}
+      warmupTicks={150}
+      cooldownTicks={120}
       nodeColor={(n) => dim(n) ? faded(n.color) : n.color}
       nodeCanvasObjectMode={() => 'after'}
       nodeCanvasObject={(node, ctx, globalScale) => {
@@ -547,6 +586,10 @@ function Graph() {
         ctx.font = `600 ${fontSize}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
+        if (clickedNode && clickedNode.id === node.id) {
+          ctx.beginPath(); ctx.arc(node.x, node.y, 9, 0, 2 * Math.PI);
+          ctx.lineWidth = 2.5 / globalScale; ctx.strokeStyle = '#ffd24a'; ctx.stroke();
+        }
         ctx.fillStyle = dim(node) ? 'rgba(234,234,234,0.65)' : '#eaeaea';
         ctx.fillText(node.name, node.x, node.y + 7);
       }}
@@ -631,8 +674,14 @@ def render_graph(nodes, edges, title, filename, client=None, node_colors=None, h
     if client is not None and budget <= 0:
         print(f"graph_viz: pictures embedded for the first {max_pixels} nodes only (max_pixels).")
 
-    links = [{"source": s, "target": d, "name": label, "color": color}
-             for s, d, label, color in map(_edge4, edges) if s in seen and d in seen]
+    merged = {}
+    for s_, d_, label, color in map(_edge4, edges):
+        if s_ in seen and d_ in seen:
+            link = merged.setdefault(tuple(sorted((s_, d_))), {"source": s_, "target": d_, "names": [], "color": color})
+            if label and label not in link["names"]:
+                link["names"].append(label)
+    links = [{"source": l["source"], "target": l["target"], "name": " + ".join(l["names"]), "color": l["color"]}
+             for l in merged.values()]  # parallel edges (e.g. HasDetection next to _BoundingBoxToImage) draw as one line
     _attach_overlays(out_nodes, edges, None)
     html = _fill(GRAPH_HTML_TEMPLATE, {
         "GRAPH_DATA": _json_for_script({"nodes": out_nodes, "links": links}),

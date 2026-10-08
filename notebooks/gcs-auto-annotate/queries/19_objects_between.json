@@ -1,0 +1,40 @@
+[
+  {
+    "FindImage": {
+      "_ref": 1,
+      "blobs": false
+    }
+  },
+  {
+    "FindBoundingBox": {
+      "is_connected_to": {
+        "ref": 1,
+        "connection_class": "HasDetection",
+        "constraints": {
+          "detector": [
+            "==",
+            "object"
+          ],
+          "score": [
+            ">=",
+            0.3,
+            "<",
+            0.5
+          ]
+        }
+      },
+      "results": {
+        "list": [
+          "object_name",
+          "score",
+          "image_id"
+        ],
+        "limit": 12
+      },
+      "sort": {
+        "key": "score",
+        "order": "descending"
+      }
+    }
+  }
+]

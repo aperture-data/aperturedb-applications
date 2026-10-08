@@ -15,16 +15,17 @@ Selective updates, without touching what you do not name:
                             ``--only object --replace --confidence-threshold 0.7``
     --limit N               first N images only (quick trial)
 
-Object-detector proposals below ``--confidence-threshold`` are dropped before storing.  Because
-that discards information, a statistics file (``enrich_stats.json``) records what every
-detector returned, including the score histogram of all proposals, so the threshold can be
-judged afterwards.
+Object-detector proposals below ``--confidence-threshold`` (default 0.3) are dropped before storing;
+queries and the per-image ``object_count`` use 0.5, so the cut-off can be raised later without calling
+Google again.  A statistics file (``enrich_stats.json``) records what every detector returned,
+including the score histogram of all proposals, so the threshold can be judged afterwards.
 """
 import argparse
 import json
 import os
 import sys
 import threading
+import time
 
 from aperturedb.ParallelQuery import ParallelQuery
 
@@ -86,7 +87,7 @@ class Enricher(Generator):
             if not present:
                 self.stats.bump("no_detections")
                 return NOOP, []
-            done = {d for d in (item.get("gcs_enriched_detectors") or "").split(",") if d}
+            done = set(item.get("gcs_detectors") or [])
             todo = [k for k in present if model.DETECTOR_NAMES[k] in self.only
                     and (self.replace or model.DETECTOR_NAMES[k] not in done)]
             if not todo:
@@ -96,7 +97,7 @@ class Enricher(Generator):
                       for key in todo}
             self.stats.bump("enriched")
             return model.enrichment_query(item["id"], self.dataset, parsed, already=done,
-                                          replace=self.replace), []
+                                          replace=self.replace, store_from=self.threshold), []
         except Exception as exc:  # one bad object must not stop the run
             self.stats.error(name, str(exc))
             return NOOP, []
@@ -125,7 +126,7 @@ class Enricher(Generator):
 def images_to_enrich(client, dataset):
     resp, _ = client.query([{"FindImage": {
         "constraints": {"dataset_name": ["==", dataset]}, "blobs": False,
-        "results": {"list": ["id", "gcs_object_name", "width", "height", "gcs_enriched_detectors"]}}}])
+        "results": {"list": ["id", "gcs_object_name", "width", "height", "gcs_detectors"]}}}])
     return resp[0]["FindImage"].get("entities", [])
 
 
@@ -134,7 +135,7 @@ def main(argv=None):
     parser.add_argument("--confidence-threshold", type=float,
                         default=float(os.environ.get("CONFIDENCE_THRESHOLD",
                                                             parsers.DEFAULT_CONFIDENCE_THRESHOLD)),
-                        help="drop object-detector proposals scoring below this (default 0.5)")
+                        help="lowest object-detector score to store (default 0.3; queries use 0.5)")
     parser.add_argument("--only", default="label,object,face,safety",
                         help="comma-separated detectors to process (default: all)")
     parser.add_argument("--replace", action="store_true",
@@ -165,9 +166,13 @@ def main(argv=None):
 
     stats = Stats()
     runner = ParallelQuery(client)
+    started = time.perf_counter()
     # batchsize 1: every image's transaction uses its own _ref numbering
     runner.query(Enricher(bucket, dataset, items, args.confidence_threshold, args.replace, only, stats),
                  batchsize=1, numthreads=args.threads, stats=True)
+    elapsed = time.perf_counter() - started
+    print(f"Enrich wall time: {elapsed:.1f} s for {len(items)} images ({len(items) / max(elapsed, 1e-9):.1f} images/s, "
+          f"{args.threads} threads{', Google data from the local cache' if args.cache_dir or os.environ.get('GCS_CACHE_DIR') else ', live from Google'})")
 
     report = stats.as_dict(args.confidence_threshold)
     with open(args.stats_file, "w") as f:
