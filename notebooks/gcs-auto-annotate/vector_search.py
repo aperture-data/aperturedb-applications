@@ -4,7 +4,12 @@ Used by ``embed.py`` (to write the embeddings) and by the notebooks. The query b
 returning ApertureDB queries; the query vector travels as the request's blob. ``torch`` / ``open_clip`` are imported
 lazily, so importing this module costs nothing unless you embed.
 """
+import json
+from pathlib import Path
+
 import numpy as np
+
+QUERY_VECTORS = Path(__file__).with_name("query_vectors.json")   # precomputed text embeddings of the demo asks
 
 DESCRIPTOR_SET = "gcs_clip_vitb16"
 MODEL, PRETRAINED, DIMENSIONS = "ViT-B-16-quickgelu", "openai", 512  # quickgelu = the activation the original OpenAI weights were trained with
@@ -17,7 +22,13 @@ def _load():
     if _model is None:
         import warnings
 
-        import open_clip
+        try:
+            import open_clip
+        except ImportError as exc:
+            raise RuntimeError(
+                "This ask has no precomputed vector and the CLIP text model is not installed. Install it with "
+                "`pip install -r requirements-embeddings.txt` (then `python vector_search.py add \"your ask\"` stores "
+                "its vector for next time), or use one of the asks listed in query_vectors.json.") from exc
         warnings.filterwarnings("ignore", category=UserWarning, module=r"(torch|open_clip)\b.*")
         model, _, preprocess = open_clip.create_model_and_transforms(MODEL, pretrained=PRETRAINED)
         model.eval()
@@ -37,12 +48,22 @@ def embed_images(blobs):
         return model.encode_image(batch).float().numpy()
 
 
+def _cached_vector(text):
+    if QUERY_VECTORS.exists():
+        data = json.loads(QUERY_VECTORS.read_text())
+        if data.get("model") == MODEL and text in data.get("vectors", {}):
+            return np.asarray(data["vectors"][text], dtype=np.float32)
+    return None
+
+
 def embed_text(text):
-    """A sentence -> one float32 vector in the same space as the posters."""
-    import torch
-    model, _, tokenizer = _load()
-    with torch.no_grad():
-        return model.encode_text(tokenizer([text])).float().numpy()[0]
+    """A sentence -> one float32 vector in the same space as the posters.
+
+    Asks listed in ``query_vectors.json`` are answered from the file, so the demo notebooks need neither torch nor the
+    CLIP model; any other sentence is embedded with the model.
+    """
+    cached = _cached_vector(text)
+    return cached if cached is not None else embed_text_uncached(text)
 
 
 def ensure_descriptor_set(client):
@@ -140,3 +161,31 @@ def exact_search(client, text, k=10, criteria=None, dataset=None):
 def recall_at_k(found_ids, exact_ids):
     """Share of the exact top-k that the index also returned."""
     return len(set(found_ids) & set(exact_ids)) / max(1, len(exact_ids))
+
+
+def add_to_cache(texts):
+    """Embed the sentences with the model and store the vectors in ``query_vectors.json``."""
+    data = {"model": MODEL, "vectors": {}}
+    if QUERY_VECTORS.exists():
+        old = json.loads(QUERY_VECTORS.read_text())
+        if old.get("model") == MODEL:
+            data = old
+    for text in texts:
+        data["vectors"][text] = [round(float(x), 6) for x in embed_text_uncached(text)]
+    QUERY_VECTORS.write_text(json.dumps(data) + "\n")
+    return len(data["vectors"])
+
+
+def embed_text_uncached(text):
+    import torch
+    model, _, tokenizer = _load()
+    with torch.no_grad():
+        return model.encode_text(tokenizer([text])).float().numpy()[0]
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 2 and sys.argv[1] == "add":
+        print(add_to_cache(sys.argv[2:]), "asks stored in", QUERY_VECTORS.name)
+    else:
+        print("usage: python vector_search.py add \"an ask\" [\"another ask\" ...]")

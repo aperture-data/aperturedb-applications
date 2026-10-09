@@ -155,6 +155,8 @@ python embed.py --bucket YOUR_BUCKET --prefix YOUR/FOLDER/       # about a secon
   index's recall against an exact brute-force search.
 * [`quality.ipynb`](quality.ipynb): several asks, scored two ways: from the stored detector values, and against **TMDB genres**
   (public data, independent of the detectors) for the posters in the sample dataset.
+* The asks used in the notebooks have their query vectors precomputed in `query_vectors.json`, so the notebooks run (for example in the notebook
+  container) without torch or the CLIP model; only a new ask needs `requirements-embeddings.txt` (`python vector_search.py add "your ask"` stores it).
 * The embeddings are CLIP ViT-B/16 (512 dimensions, cosine, HNSW). They are identical to what ApertureDB's embeddings workflow
   produces by default, so a set made by that workflow is interchangeable. `vector_search.py` holds the query builders.
 

@@ -77,3 +77,14 @@ def test_filter_is_applied_inside_the_vector_search(client):
 def test_recall_at_k():
     assert vs.recall_at_k(["a", "b", "c"], ["a", "b", "d"]) == pytest.approx(2 / 3)
     assert vs.recall_at_k([], []) == 0.0
+
+
+def test_demo_asks_need_no_model(monkeypatch):
+    """The notebooks must work where torch / open_clip are not installed (e.g. the notebook container)."""
+    def no_model():
+        raise RuntimeError("model needed")
+    monkeypatch.setattr(vs, "_load", no_model)
+    vec = vs.embed_text("a family-friendly animated movie where everyone looks happy")
+    assert vec.shape == (vs.DIMENSIONS,) and vec.dtype == np.float32
+    with pytest.raises(RuntimeError):
+        vs.embed_text("an ask nobody precomputed")
