@@ -93,10 +93,9 @@ def label_word_search(words="animatd film", max_edits=1, mode="any", min_score=0
     ``fulltext`` returns a relevance score; ``> 0`` keeps the matches. Unlike ``icontains`` it matches whole words
     (no substrings), ignores case and forgives up to ``max_edits`` typos per word.
     """
-    options = {"mode": "adaptive", "max_edits": max_edits}
     return [
         {"FindEntity": {"_ref": 1, "with_class": "GCSLabel",
-                        "constraints": _all([{"fulltext": ["$description", words, mode, options]}, ">", 0],
+                        "constraints": _all([{"fulltext": ["$description", words, mode, max_edits]}, ">", 0],
                                             ["$score", ">=", min_score], _ds(dataset))}},
         {"FindImage": {"is_connected_to": {"ref": 1}, "blobs": images,
                        "results": {"list": ["gcs_object_name", "label_count", "face_count"], "limit": limit}}},

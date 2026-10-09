@@ -11,10 +11,7 @@
               "$description",
               "animatd film",
               "any",
-              {
-                "mode": "adaptive",
-                "max_edits": 1
-              }
+              1
             ]
           },
           ">",
