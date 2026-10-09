@@ -228,3 +228,16 @@ def test_cli_schema_and_node(db, poster, tmp_path, capsys):
     assert gv.main(["node", "_Image", "--where", f"id={image}", "--label", "_Image=gcs_object_stem",
                     "--out", str(tmp_path / "n.html")]) == 0
     assert (tmp_path / "s.html").exists() and (tmp_path / "n.html").exists()
+
+
+def test_unrelated_batch_error_does_not_disable_batching():
+    """E.g. descriptors need a set name: that class pair is skipped, the batched path stays on for the rest."""
+    class Stub:
+        def query(self, q, blobs=None):
+            return [{"FindImage": {"status": 0, "entities": []}},
+                    {"FindDescriptor": {"status": -1, "info": "FindDescriptor requires a set"}}], []
+
+    stub = Stub()
+    gv._BATCHED.clear()
+    assert gv._neighbours(stub, "_Image", ["1.0.1"], "_DescriptorToImage", "_Descriptor", 3, None) == {}
+    assert gv._BATCHED.get(id(stub), True) is True

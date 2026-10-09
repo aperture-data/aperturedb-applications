@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Attach GCS auto-annotate detections to the images ``ingest.py`` loaded.
+"""Attach the Google Cloud Storage object enrichments (detections) to the images ``ingest.py`` loaded.
 
     python enrich.py --bucket my-bucket --prefix posters/ [--confidence-threshold 0.5]
 

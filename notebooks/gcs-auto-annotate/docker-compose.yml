@@ -1,4 +1,4 @@
-# Local ApertureDB Community Edition for the GCS auto-annotate demo.
+# Local ApertureDB Community Edition for the Google Cloud Storage object enrichments demo.
 #
 # Default: ApertureDB CE + the Lenz TCP gateway (everything the scripts and notebook need).
 # Optional profiles:

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time setup for the GCS auto-annotate demo.
+# One-time setup for the Google Cloud Storage object enrichments demo.
 #
 #   ./setup.sh               python environment + local ApertureDB Community Edition (Docker)
 #   ./setup.sh --no-docker   python environment only (you bring your own ApertureDB: see .env.example)

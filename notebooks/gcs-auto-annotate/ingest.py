@@ -4,7 +4,7 @@
     python ingest.py --bucket my-bucket --prefix posters/ [--limit 200]
 
 Safe to re-run: objects already ingested for the same dataset are skipped, so it only adds what
-is new in the folder.  Run ``enrich.py`` afterwards to attach the GCS auto-annotate detections.
+is new in the folder.  Run ``enrich.py`` afterwards to attach the Google Cloud Storage object enrichments (the detections).
 """
 import argparse
 import io

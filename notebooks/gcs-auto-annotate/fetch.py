@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Copy a bucket folder and its auto-annotate results from Google into a local cache folder.
+"""Copy a bucket folder and its object enrichments from Google into a local cache folder.
 
     python fetch.py --bucket my-bucket --prefix posters/ --cache-dir ./gcs-cache [--threads 12]
 

@@ -194,6 +194,9 @@ def _neighbours(client, cls, ids, conn_class, other, per_class, sort):
         if status is not None and status.get("status", 0) == 0 and isinstance(status.get("entities"), dict):
             _BATCHED[key] = True
             return status["entities"]
+        info = str(resp.get("info") if isinstance(resp, dict) else (status or {}).get("info"))
+        if "group_by_source" not in info and "per_group" not in info:
+            return {}  # this class pair cannot be walked generically (e.g. descriptors need a set name): skip it
         _BATCHED[key] = False
     groups = {}
     for uid in ids:

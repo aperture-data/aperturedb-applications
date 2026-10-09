@@ -1,4 +1,4 @@
-"""Pure functions: GCS auto-annotate context objects -> ApertureDB data.
+"""Pure functions: Google Cloud Storage object-enrichment contexts -> ApertureDB data.
 
 No network, no database - everything here is unit-testable with the JSON fixtures in
 tests/fixtures.  When the detectors change (new fields, new detector types), this is the file
