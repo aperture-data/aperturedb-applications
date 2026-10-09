@@ -1,0 +1,7 @@
+# Optional: only for embed.py / vector_search.py (CLIP embeddings and vector search).
+# On a machine without a GPU install the small CPU build of torch first:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+torch
+open-clip-torch
+numpy
+pillow

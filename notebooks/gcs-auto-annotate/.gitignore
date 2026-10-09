@@ -6,3 +6,4 @@ __pycache__/
 graphs/
 enrich_stats.json
 error.*.log
+tmdb_5000_movies.csv
