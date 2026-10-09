@@ -72,3 +72,8 @@ def test_filter_is_applied_inside_the_vector_search(client):
     finally:
         client.query([{"DeleteImage": {"constraints": {"dataset_name": ["==", tag]}}},
                       {"DeleteDescriptor": {"set": vs.DESCRIPTOR_SET, "constraints": {"dataset_name": ["==", tag]}}}])
+
+
+def test_recall_at_k():
+    assert vs.recall_at_k(["a", "b", "c"], ["a", "b", "d"]) == pytest.approx(2 / 3)
+    assert vs.recall_at_k([], []) == 0.0

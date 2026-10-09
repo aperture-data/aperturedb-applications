@@ -34,19 +34,19 @@ def _flags(r):
     return problems
 
 
-def posters(rows, blobs, width=170):
-    """A row of posters, each captioned with its similarity and detector values; problems are printed in red."""
-    cells = []
-    for r, b in zip(rows, blobs):
-        faces = r.get("face_count") or 0
-        joy = f", joy {r['min_face_joy']:.2f}" if faces and r.get("min_face_joy") is not None else ""
-        problems = _flags(r)
-        note = f'<br><b style="color:#c0392b">{html.escape(", ".join(problems))}</b>' if problems else ""
-        cells.append(
-            f'<figure style="display:inline-block;margin:6px;text-align:center;font:12px sans-serif;vertical-align:top;width:{width}px">'
+def _one(r, b, width):
+    faces = r.get("face_count") or 0
+    joy = f", joy {r['min_face_joy']:.2f}" if faces and r.get("min_face_joy") is not None else ""
+    problems = _flags(r)
+    note = f'<br><b style="color:#c0392b">{html.escape(", ".join(problems))}</b>' if problems else ""
+    return (f'<figure style="display:inline-block;margin:6px;text-align:center;font:12px sans-serif;vertical-align:top;width:{width}px">'
             f'<img width="{width}" src="data:{gv.sniff_mime(b)};base64,{base64.b64encode(b).decode()}">'
             f"<figcaption>sim {r['similarity']:.2f} &middot; {faces} face(s){joy}{note}</figcaption></figure>")
-    display(HTML("".join(cells) or "<i>no posters match</i>"))
+
+
+def posters(rows, blobs, width=170):
+    """A row of posters, each captioned with its similarity and detector values; problems are printed in red."""
+    display(HTML("".join(_one(r, b, width) for r, b in zip(rows, blobs)) or "<i>no posters match</i>"))
 
 
 def summary(rows):
@@ -54,3 +54,20 @@ def summary(rows):
     bad_face = sum("unhappy face" in _flags(r) for r in rows)
     display(HTML(f"<p style='font:14px sans-serif'><b>{len(rows)} results:</b> {bad_safety} rated POSSIBLE or higher for adult/violent content, "
                  f"{bad_face} with an unhappy face.</p>"))
+
+
+def side_by_side(left, right, exact, width=125):
+    """Two result lists next to each other, each with its counts and recall against the exact search."""
+    import vector_search as vs
+    columns = []
+    for title, (rows, blobs), exact_ids in (("Vector search alone", left, exact[0]), ("Vector search + metadata", right, exact[1])):
+        bad_safety = sum("rated POSSIBLE+" in _flags(r) for r in rows)
+        bad_face = sum("unhappy face" in _flags(r) for r in rows)
+        recall = vs.recall_at_k([r["image_id"] for r in rows], exact_ids)
+        stats = (f"<div style='font:14px sans-serif;margin:6px 0 10px'><b>{len(rows)} results</b> &middot; "
+                 f"<b style='color:{'#c0392b' if bad_face else '#2a7a2a'}'>{bad_face} with an unhappy face</b> &middot; "
+                 f"<b style='color:{'#c0392b' if bad_safety else '#2a7a2a'}'>{bad_safety} rated POSSIBLE+</b> &middot; "
+                 f"recall@{len(exact_ids)} {recall:.0%}</div>")
+        grid = "".join(_one(r, b, width) for r, b in zip(rows, blobs))
+        columns.append(f"<td style='vertical-align:top;padding:0 14px;width:50%;text-align:left'><div style='font:700 18px sans-serif'>{title}</div>{stats}{grid}</td>")
+    display(HTML("<table style='border-collapse:collapse'><tr>" + "".join(columns) + "</tr></table>"))

@@ -109,3 +109,34 @@ def search(client, text, k=10, criteria=None, dataset=None):
             rows.append({"image_id": image_id, "similarity": ranking[image_id], **poster})
             pixels.append(blob)
     return rows, pixels
+
+
+def exact_search(client, text, k=10, criteria=None, dataset=None):
+    """Brute-force nearest posters (cosine) among those satisfying ``criteria``: the exact answer the index is measured against.
+
+    Reads every candidate's vector back and ranks them locally, so it is only for evaluation. Returns the image ids in order.
+    """
+    query = []
+    find = {"set": DESCRIPTOR_SET, "blobs": True, "results": {"list": ["image_id"]}}
+    conditions = [c for c in (criteria, ["$dataset_name", "==", dataset] if dataset else None) if c]
+    if conditions:
+        query.append({"FindImage": {"_ref": 1, "blobs": False,
+                                    "constraints": conditions[0] if len(conditions) == 1 else ["all", *conditions]}})
+        find["is_connected_to"] = {"ref": 1}
+    query.append({"FindDescriptor": find})
+    resp, blobs = client.query(query)
+    if isinstance(resp, dict):
+        raise RuntimeError(resp.get("info"))
+    entities = resp[-1]["FindDescriptor"].get("entities", [])
+    if not entities:
+        return []
+    matrix = np.vstack([np.frombuffer(b, dtype=np.float32) for b in blobs])
+    q = np.asarray(embed_text(text), dtype=np.float32)
+    sims = (matrix @ q) / (np.linalg.norm(matrix, axis=1) * np.linalg.norm(q))
+    order = np.argsort(-sims)[:k]
+    return [entities[i]["image_id"] for i in order]
+
+
+def recall_at_k(found_ids, exact_ids):
+    """Share of the exact top-k that the index also returned."""
+    return len(set(found_ids) & set(exact_ids)) / max(1, len(exact_ids))
