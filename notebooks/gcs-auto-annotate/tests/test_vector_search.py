@@ -27,8 +27,15 @@ def test_nearest_posters_without_criteria_is_a_plain_search():
 def test_nearest_posters_filters_inside_the_search():
     query = vs.nearest_posters(5, vs.family_criteria(), dataset="d")
     assert "FindImage" in query[0] and "FindDescriptor" in query[1]
-    assert query[1]["FindDescriptor"]["is_connected_to"] == {"ref": 1}
+    assert query[1]["FindDescriptor"]["is_connected_to"] == {"ref": 2}
     assert ["$dataset_name", "==", "d"] in query[0]["FindImage"]["constraints"]
+
+
+def test_nearest_posters_can_hop_through_a_label():
+    query = vs.nearest_posters(5, vs.family_criteria(), label="animation")
+    assert [list(c)[0] for c in query] == ["FindEntity", "FindImage", "FindDescriptor"]
+    assert query[1]["FindImage"]["is_connected_to"] == {"ref": 1}
+    assert query[2]["FindDescriptor"]["is_connected_to"] == {"ref": 2}
 
 
 @pytest.fixture()

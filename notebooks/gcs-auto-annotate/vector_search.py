@@ -88,30 +88,48 @@ def family_criteria(max_rank=2, min_joy=0.6):
             ["any", ["$face_count", "==", 0], ["$min_face_joy", ">=", min_joy]]]
 
 
-def nearest_posters(k=10, criteria=None, dataset=None):
+def _candidates(criteria, dataset, label, min_label_score):
+    """The commands that narrow the posters allowed to compete, and the ref of the last one (None = everybody)."""
+    query, ref = [], None
+    if label:
+        query.append({"FindEntity": {"_ref": 1, "with_class": "GCSLabel",
+                                     "constraints": ["all", ["$description", "icontains", label],
+                                                     ["$score", ">=", min_label_score]]}})
+        ref = 1
+    conditions = [c for c in (criteria, ["$dataset_name", "==", dataset] if dataset else None) if c]
+    if conditions or label:
+        image = {"_ref": 2, "blobs": False}
+        if conditions:
+            image["constraints"] = conditions[0] if len(conditions) == 1 else ["all", *conditions]
+        if label:
+            image["is_connected_to"] = {"ref": 1}
+        query.append({"FindImage": image})
+        ref = 2
+    return query, ref
+
+
+def nearest_posters(k=10, criteria=None, dataset=None, label=None, min_label_score=0.5):
     """The ``k`` posters closest to the query vector (send the vector as the blob).
 
-    Without ``criteria`` every poster competes (vector only). With ``criteria`` only posters satisfying them do
-    (vector + metadata): the filter is applied *inside* the vector search, so you still get k results.
+    Without restrictions every poster competes (vector only). ``criteria`` (an expression over the poster's stored values,
+    e.g. :func:`family_criteria`) and ``label`` (the poster must carry a label containing this text, a graph hop) narrow who
+    competes; the filter is applied *inside* the vector search, so you still get ``k`` results.
     """
-    query = []
+    query, ref = _candidates(criteria, dataset, label, min_label_score)
     find = {"set": DESCRIPTOR_SET, "k_neighbors": k, "distances": True, "results": {"list": ["image_id"]}}
-    conditions = [c for c in (criteria, ["$dataset_name", "==", dataset] if dataset else None) if c]
-    if conditions:
-        query.append({"FindImage": {"_ref": 1, "blobs": False,
-                                    "constraints": conditions[0] if len(conditions) == 1 else ["all", *conditions]}})
-        find["is_connected_to"] = {"ref": 1}
+    if ref:
+        find["is_connected_to"] = {"ref": ref}
     query.append({"FindDescriptor": find})
     return query
 
 
-def search(client, text, k=10, criteria=None, dataset=None):
+def search(client, text, k=10, criteria=None, dataset=None, label=None, min_label_score=0.5):
     """Run :func:`nearest_posters` for a sentence; returns ``(rows, blobs)`` in ranking order.
 
     A row is ``{"image_id", "similarity", ...poster properties...}``; ``blobs`` are the poster pixels.
     """
     vector = np.asarray(embed_text(text), dtype=np.float32)
-    resp, _ = client.query(nearest_posters(k, criteria, dataset), [vector.tobytes()])
+    resp, _ = client.query(nearest_posters(k, criteria, dataset, label, min_label_score), [vector.tobytes()])
     if isinstance(resp, dict):
         raise RuntimeError(resp.get("info"))
     found = resp[-1]["FindDescriptor"].get("entities", [])
@@ -132,18 +150,15 @@ def search(client, text, k=10, criteria=None, dataset=None):
     return rows, pixels
 
 
-def exact_search(client, text, k=10, criteria=None, dataset=None):
-    """Brute-force nearest posters (cosine) among those satisfying ``criteria``: the exact answer the index is measured against.
+def exact_search(client, text, k=10, criteria=None, dataset=None, label=None, min_label_score=0.5):
+    """Brute-force nearest posters (cosine) among those allowed to compete: the exact answer the index is measured against.
 
     Reads every candidate's vector back and ranks them locally, so it is only for evaluation. Returns the image ids in order.
     """
-    query = []
+    query, ref = _candidates(criteria, dataset, label, min_label_score)
     find = {"set": DESCRIPTOR_SET, "blobs": True, "results": {"list": ["image_id"]}}
-    conditions = [c for c in (criteria, ["$dataset_name", "==", dataset] if dataset else None) if c]
-    if conditions:
-        query.append({"FindImage": {"_ref": 1, "blobs": False,
-                                    "constraints": conditions[0] if len(conditions) == 1 else ["all", *conditions]}})
-        find["is_connected_to"] = {"ref": 1}
+    if ref:
+        find["is_connected_to"] = {"ref": ref}
     query.append({"FindDescriptor": find})
     resp, blobs = client.query(query)
     if isinstance(resp, dict):
