@@ -83,6 +83,8 @@ def _label_for(entity, cls, label_props):
             value = str(value)
             # hash-like ids make unreadable labels: shorten them
             return value if cand != "id" or len(value) <= 16 else value[:8] + "\u2026"
+    if cls == "_Descriptor":  # a vector: its only readable property would be an internal id
+        return "embedding"
     return str(entity.get("_uniqueid", cls))
 
 

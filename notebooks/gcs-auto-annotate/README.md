@@ -109,12 +109,14 @@ make it unnecessary.
 ```
 _Image ──HasLabel──────▶ GCSLabel           description, score, topicality, knowledge_graph_id
   ▲  └──HasDetection──▶ _BoundingBox         edge properties: detector, score, stored_from
-  └──── _BoundingBox                        object boxes (label = object name) and face boxes (label "face")
+  │   └──── _BoundingBox                    object boxes (label = object name) and face boxes (label "face")
+  └──── _Descriptor ──▶ _DescriptorSet      optional: the CLIP embedding (embed.py), set gcs_clip_vitb16
 ```
 
 | Stored on | Properties |
 |---|---|
 | `_Image` | `id`, `dataset_name`, `gcs_bucket`, `gcs_object_name`, `gcs_generation`, `width`, `height`; `adult_content_likelihood/_rank`, `violent_content_likelihood/_rank`; `face_count`, `object_count`, `label_count`, `max_face_joy`, `min_face_joy`; `gcs_detectors` (list) |
+| `_Descriptor` (optional) | `image_id`, `dataset_name`; the vector itself (512 floats, cosine, HNSW) |
 | object `_BoundingBox` | `object_name`, `score` (stored from 0.3), `area_fraction`, `knowledge_graph_id`, `annotation_source = gcs-object-detector` |
 | face `_BoundingBox` | `joy`, `sorrow`, `anger`, `surprise`, `pan/roll/tilt_angle`, `blurred`, `under_exposed`, `headwear`, `detection_confidence`, `area_fraction`, `landmarks_json` (all 34 landmarks), `annotation_source = gcs-face-detector` |
 
@@ -150,7 +152,7 @@ pip install -r requirements-embeddings.txt        # torch (CPU is fine) + open_c
 python embed.py --bucket YOUR_BUCKET --prefix YOUR/FOLDER/       # about a second per poster on a laptop CPU
 ```
 
-* [`demo.ipynb`](demo.ipynb): one ask, "a family-friendly animated movie where everyone looks happy", answered side by side by
+* [`demo.ipynb`](demo.ipynb): one ask, "something a child could watch tonight, where everyone looks happy", answered side by side by
   vector search alone and by vector search + metadata, with the counts a viewer cares about (unhappy faces, ratings) and the
   index's recall against an exact brute-force search.
 * [`quality.ipynb`](quality.ipynb): several asks, scored two ways: from the stored detector values, and against **TMDB genres**
