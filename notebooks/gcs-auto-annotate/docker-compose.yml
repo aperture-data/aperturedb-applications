@@ -2,8 +2,7 @@
 #
 # Default: ApertureDB CE + the Lenz TCP gateway (everything the scripts and notebook need).
 # Optional profiles:
-#   ui        the ApertureDB web UI (the UI image is not on public Docker Hub; you need
-#             access to it, or set WEBUI_IMAGE to an image you can pull)
+#   ui        the ApertureDB web UI (public image aperturedata/webui, tag matched to the server)
 #   notebook  JupyterLab (public image) with this folder mounted
 #
 # IMPORTANT: the ApertureDB community edition image is licensed for evaluation and
@@ -18,7 +17,7 @@
 # Endpoints (override host ports with env vars):
 #   APERTUREDB_PORT  (default 55557)  TCP endpoint used by the scripts and the adb CLI
 #   WEBUI_PORT       (default 8088)   web UI -> http://localhost:8088  (ui profile; admin / admin)
-#   WEBUI_IMAGE      web UI image     (default aperturedata/aperturedata-platform-web-private:latest)
+#   WEBUI_IMAGE      web UI image     (default aperturedata/webui:v0.19.14; a newer one, e.g. 0.19.15-rc.5, works too)
 #   NOTEBOOK_PORT    (default 8899)   JupyterLab (notebook profile only)
 
 name: gcs-auto-annotate
@@ -58,7 +57,7 @@ services:
 
   webui:
     profiles: ["ui"]
-    image: ${WEBUI_IMAGE:-aperturedata/aperturedata-platform-web-private:latest}
+    image: ${WEBUI_IMAGE:-aperturedata/webui:v0.19.14}
     restart: unless-stopped
     depends_on:
       - lenz

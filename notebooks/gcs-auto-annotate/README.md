@@ -50,7 +50,7 @@ The scripts talk to **any** ApertureDB; which one is decided by a key, nothing e
 |---|---|
 | `docker compose up -d` | ApertureDB CE and its gateway - all the scripts need |
 | `docker compose --profile notebook up -d` | + JupyterLab at http://localhost:8899 (password `test`, or set `NOTEBOOK_PASSWORD`) with this folder under `gcs-auto-annotate/` and the connection already set |
-| `docker compose --profile ui up -d` | + the ApertureDB web UI at http://localhost:8088 (admin / admin). The UI image is not on public Docker Hub: you need access to it, or set `WEBUI_IMAGE`. |
+| `docker compose --profile ui up -d` | + the ApertureDB web UI at http://localhost:8088 (admin / admin). The image is the public `aperturedata/webui` (tag `v0.19.14`, matching the server); set `WEBUI_IMAGE` to try a newer one, for example `aperturedata/webui:0.19.15-rc.5`. |
 
 The compose file pins ApertureDB **v0.19.14** (the first release with array properties and full-text search; this demo
 needs it for the full-text index and the `gcs_detectors` list). Set `APERTUREDB_IMAGE` to try another server image.
