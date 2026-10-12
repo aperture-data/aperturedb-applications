@@ -224,6 +224,24 @@ def family_movie_night(term="animation", min_joy=0.6, dataset=None, images=True,
 
 # --------------------------------------------------------------------------- graph traversal
 
+def team_sports_movies(min_people=3, max_rank=2, dataset=None, images=True, limit=12):
+    """Three detectors in one request: a sports-like label (graph hop), at least ``min_people`` faces, family-friendly ratings.
+
+    The same filter the vector search uses in ``demo.ipynb``, here without a vector (so it runs in the web UI).
+    """
+    words = "sport|football|basketball|baseball|soccer|hockey|tennis|boxing|wrestl|athlete|rugby|swimming"
+    return [
+        {"FindEntity": {"_ref": 1, "with_class": "GCSLabel",
+                        "constraints": _all(["$description", "regex", f"(?i)({words})"], ["$score", ">=", 0.5], _ds(dataset))}},
+        {"FindImage": {"is_connected_to": {"ref": 1}, "blobs": images,
+                       "constraints": ["all", ["$face_count", ">=", min_people], ["$adult_content_rank", "<=", max_rank],
+                                       ["$violent_content_rank", "<=", max_rank]],
+                       "results": {"list": ["gcs_object_name", "face_count", "adult_content_likelihood", "violent_content_likelihood"],
+                                   "limit": limit},
+                       "sort": {"key": "face_count", "order": "descending"}}},
+    ]
+
+
 def everyone_looks_happy(term="fictional character", min_joy=0.7, min_score=0.5, dataset=None, images=True, limit=12):
     """The headline query: posters labelled ``term`` on which *every* detected face is smiling.
 
@@ -362,6 +380,7 @@ def object_face_overlap(image_id, object_name="Logo", min_score=MIN_OBJECT_SCORE
 
 # slug, group, function, one-line "what it shows" (also used as the UI file's description)
 CATALOG = [
+    ("team_sports_movies", "Headline", team_sports_movies, "Sports label AND three or more people AND family-friendly ratings, in one request"),
     ("family_movie_night", "Headline", family_movie_night, "A natural-language ask as one query: family-friendly AND animated AND every face smiling"),
     ("everyone_looks_happy", "Headline", everyone_looks_happy, "Label term AND every face on the poster smiling, in one request"),
     ("label_vocabulary", "Discover the Data", label_vocabulary, "Every label Google found, with how many posters carry it (group + count)"),

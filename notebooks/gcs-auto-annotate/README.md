@@ -152,11 +152,12 @@ pip install -r requirements-embeddings.txt        # torch (CPU is fine) + open_c
 python embed.py --bucket YOUR_BUCKET --prefix YOUR/FOLDER/       # about a second per poster on a laptop CPU
 ```
 
-* [`demo.ipynb`](demo.ipynb): one ask, "something a child could watch tonight, where everyone looks happy", answered side by side by
-  vector search alone and by vector search + metadata, with the counts a viewer cares about (unhappy faces, ratings) and the
-  index's recall against an exact brute-force search.
-* [`quality.ipynb`](quality.ipynb): several asks, scored two ways: from the stored detector values, and against **TMDB genres**
-  (public data, independent of the detectors) for the posters in the sample dataset.
+* [`demo.ipynb`](demo.ipynb): one ask, "a family-friendly sports movie about a team, with three or more people in frame", answered side by side by
+  vector search alone and by vector search + metadata (a sports label from the label detector, a people count from the face detector,
+  family-friendly ratings from the content-safety detector), with the problems a viewer would notice flagged on each poster and the
+  index's recall against an exact brute-force search. A second example filters on how two object boxes overlap (a person and a ball).
+* [`quality.ipynb`](quality.ipynb): several asks, scored two ways: from the stored detector values, and against **TMDB genres and keywords**
+  (public data, independent of the detectors), plus recall against exact search.
 * The asks used in the notebooks have their query vectors precomputed in `query_vectors.json`, so the notebooks run (for example in the notebook
   container) without torch or the CLIP model; only a new ask needs `requirements-embeddings.txt` (`python vector_search.py add "your ask"` stores it).
 * The embeddings are CLIP ViT-B/16 (512 dimensions, cosine, HNSW). They are identical to what ApertureDB's embeddings workflow
@@ -170,7 +171,7 @@ for any schema).
 ```bash
 python graph_viz.py schema                                    # classes and connections with live counts
 python graph_viz.py node _Image --where gcs_object_stem=10028 --label _Image=gcs_object_stem --open
-python graph_viz.py query queries/12_happy_frontal_faces.json --label _Image=gcs_object_stem --open
+python graph_viz.py query queries/13_happy_frontal_faces.json --label _Image=gcs_object_stem --open
 ```
 
 Click a node for its properties, its picture with every stored box drawn over it, and the query that fetches it

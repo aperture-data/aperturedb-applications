@@ -1,0 +1,60 @@
+[
+  {
+    "FindEntity": {
+      "_ref": 1,
+      "with_class": "GCSLabel",
+      "constraints": [
+        "all",
+        [
+          "$description",
+          "regex",
+          "(?i)(sport|football|basketball|baseball|soccer|hockey|tennis|boxing|wrestl|athlete|rugby|swimming)"
+        ],
+        [
+          "$score",
+          ">=",
+          0.5
+        ]
+      ]
+    }
+  },
+  {
+    "FindImage": {
+      "is_connected_to": {
+        "ref": 1
+      },
+      "blobs": true,
+      "constraints": [
+        "all",
+        [
+          "$face_count",
+          ">=",
+          3
+        ],
+        [
+          "$adult_content_rank",
+          "<=",
+          2
+        ],
+        [
+          "$violent_content_rank",
+          "<=",
+          2
+        ]
+      ],
+      "results": {
+        "list": [
+          "gcs_object_name",
+          "face_count",
+          "adult_content_likelihood",
+          "violent_content_likelihood"
+        ],
+        "limit": 12
+      },
+      "sort": {
+        "key": "face_count",
+        "order": "descending"
+      }
+    }
+  }
+]

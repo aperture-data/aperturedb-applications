@@ -88,13 +88,19 @@ def family_criteria(max_rank=2, min_joy=0.6):
             ["any", ["$face_count", "==", 0], ["$min_face_joy", ">=", min_joy]]]
 
 
+def _label_constraint(label):
+    """``label`` is a word (substring, any case) or a list of words (any of them): a graph hop through the label detector."""
+    if isinstance(label, (list, tuple)):
+        return ["$description", "regex", "(?i)(" + "|".join(label) + ")"]
+    return ["$description", "icontains", label]
+
+
 def _candidates(criteria, dataset, label, min_label_score):
     """The commands that narrow the posters allowed to compete, and the ref of the last one (None = everybody)."""
     query, ref = [], None
     if label:
         query.append({"FindEntity": {"_ref": 1, "with_class": "GCSLabel",
-                                     "constraints": ["all", ["$description", "icontains", label],
-                                                     ["$score", ">=", min_label_score]]}})
+                                     "constraints": ["all", _label_constraint(label), ["$score", ">=", min_label_score]]}})
         ref = 1
     conditions = [c for c in (criteria, ["$dataset_name", "==", dataset] if dataset else None) if c]
     if conditions or label:
@@ -106,6 +112,48 @@ def _candidates(criteria, dataset, label, min_label_score):
         query.append({"FindImage": image})
         ref = 2
     return query, ref
+
+
+def people_criteria(min_people=3, max_rank=2):
+    """At least ``min_people`` detected faces (a count a vector cannot express) and ratings no higher than UNLIKELY."""
+    return ["all", ["$face_count", ">=", min_people], ["$adult_content_rank", "<=", max_rank],
+            ["$violent_content_rank", "<=", max_rank]]
+
+
+SPORT_LABELS = ["sport", "football", "basketball", "baseball", "soccer", "hockey", "tennis", "boxing", "wrestl", "athlete", "rugby", "swimming"]
+
+
+def only_ids(ids):
+    """A criteria expression that admits just these image ids (for a short list, e.g. the result of a spatial test)."""
+    return ["any", *[["$id", "==", i] for i in ids]] if ids else ["$id", "==", "-none-"]
+
+
+def overlapping_ids(client, first="person|man|woman|boy|girl", second="ball", min_score=0.5, dataset=None):
+    """Posters where an object box named like ``first`` overlaps one named like ``second``, decided by the database (RegionIoU).
+
+    Only posters that have a ``second`` box are tested, one RegionIoU each.
+    """
+    def named(p):
+        return ["all", ["$object_name", "regex", f"(?i)^({p})$" if "|" in p else f"(?i){p}"], ["$score", ">=", min_score]]
+
+    scope = ["$dataset_name", "==", dataset] if dataset else None
+    where = ["all", *([named(second)] + ([scope] if scope else []))]
+    resp, _ = client.query([{"FindBoundingBox": {"constraints": where, "results": {"list": ["image_id"], "limit": 100000}}}])
+    images = sorted({e["image_id"] for e in resp[0]["FindBoundingBox"].get("entities", [])})
+    found = []
+    for image_id in images:
+        resp, _ = client.query([
+            {"FindImage": {"_ref": 1, "blobs": False, "constraints": {"id": ["==", image_id]}}},
+            {"FindBoundingBox": {"_ref": 2, "image_ref": 1, "constraints": named(first), "coordinates": True, "results": {"list": ["_label"]}}},
+            {"FindBoundingBox": {"_ref": 3, "image_ref": 1, "constraints": named(second), "coordinates": True, "results": {"list": ["_label"]}}},
+            {"RegionIoU": {"roi_1": 2, "roi_2": 3}}])
+        try:
+            matrix = resp[-1]["RegionIoU"]["IoU"]
+        except (KeyError, TypeError, IndexError):
+            continue
+        if any(v > 0 for row in matrix for v in row):
+            found.append(image_id)
+    return found
 
 
 def nearest_posters(k=10, criteria=None, dataset=None, label=None, min_label_score=0.5):

@@ -95,3 +95,11 @@ def test_demo_asks_need_no_model(monkeypatch):
     assert vec.shape == (vs.DIMENSIONS,) and vec.dtype == np.float32
     with pytest.raises(RuntimeError):
         vs.embed_text("an ask nobody precomputed")
+
+
+def test_people_criteria_and_label_words():
+    crit = vs.people_criteria(4)
+    assert ["$face_count", ">=", 4] in crit and ["$adult_content_rank", "<=", 2] in crit
+    q = vs.nearest_posters(5, crit, label=["sport", "football"])
+    assert q[0]["FindEntity"]["constraints"][1] == ["$description", "regex", "(?i)(sport|football)"]
+    assert vs.only_ids(["a", "b"]) == ["any", ["$id", "==", "a"], ["$id", "==", "b"]]
