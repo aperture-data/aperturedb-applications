@@ -1,4 +1,4 @@
-# Queries for the ApertureDB web UI
+# Queries for the ApertureDB Web UI
 
 Paste any of these JSON files into the UI's query editor (or run them from `queries.ipynb`).
 
@@ -10,16 +10,16 @@ Paste any of these JSON files into the UI's query editor (or run them from `quer
 - `01_family_movie_night.json` - A natural-language ask as one query: family-friendly AND animated AND every face smiling
 - `02_everyone_looks_happy.json` - Label term AND every face on the poster smiling, in one request
 
-## Discover the data
+## Discover the Data
 
 - `03_label_vocabulary.json` - Every label Google found, with how many posters carry it (group + count)
 - `04_safety_ratings.json` - Content-safety ratings: how many posters per (adult, violent) pair
 
-## Family friendly
+## Family Friendly
 
 - `05_family_friendly.json` - A label AND both safety ratings VERY_UNLIKELY
 
-## String search
+## String Search
 
 - `06_labels_containing.json` - Case-insensitive substring over label text, then traverse to the posters
 - `07_people_by_name.json` - RE2 regular expression over object names
@@ -36,7 +36,7 @@ Paste any of these JSON files into the UI's query editor (or run them from `quer
 - `15_sensitive_content.json` - Moderation across two detectors' ranks
 - `16_not_yet_enriched.json` - is_missing as a data-quality check
 
-## Graph traversal
+## Graph Traversal
 
 - `17_happy_faces_on_tagged_posters.json` - label -> poster -> faces in one request
 - `18_label_and_object_together.json` - Posters connected to a label AND an object box

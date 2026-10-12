@@ -364,35 +364,35 @@ def object_face_overlap(image_id, object_name="Logo", min_score=MIN_OBJECT_SCORE
 CATALOG = [
     ("family_movie_night", "Headline", family_movie_night, "A natural-language ask as one query: family-friendly AND animated AND every face smiling"),
     ("everyone_looks_happy", "Headline", everyone_looks_happy, "Label term AND every face on the poster smiling, in one request"),
-    ("label_vocabulary", "Discover the data", label_vocabulary, "Every label Google found, with how many posters carry it (group + count)"),
-    ("safety_ratings", "Discover the data", safety_ratings, "Content-safety ratings: how many posters per (adult, violent) pair"),
-    ("family_friendly", "Family friendly", family_friendly, "A label AND both safety ratings VERY_UNLIKELY"),
-    ("labels_containing", "String search", labels_containing, "Case-insensitive substring over label text, then traverse to the posters"),
-    ("people_by_name", "String search", people_by_name, "RE2 regular expression over object names"),
-    ("label_search_boolean", "String search", label_search_boolean, "any / not / score combined in one text search"),
-    ("label_shapes", "String search", label_shapes, "like and istarts_with patterns"),
-    ("label_word_search", "String search", label_word_search, "Full-text word search over labels with typo tolerance"),
-    ("file_name_search", "String search", file_name_search, "Prefix search over object names (trigram index)"),
+    ("label_vocabulary", "Discover the Data", label_vocabulary, "Every label Google found, with how many posters carry it (group + count)"),
+    ("safety_ratings", "Discover the Data", safety_ratings, "Content-safety ratings: how many posters per (adult, violent) pair"),
+    ("family_friendly", "Family Friendly", family_friendly, "A label AND both safety ratings VERY_UNLIKELY"),
+    ("labels_containing", "String Search", labels_containing, "Case-insensitive substring over label text, then traverse to the posters"),
+    ("people_by_name", "String Search", people_by_name, "RE2 regular expression over object names"),
+    ("label_search_boolean", "String Search", label_search_boolean, "any / not / score combined in one text search"),
+    ("label_shapes", "String Search", label_shapes, "like and istarts_with patterns"),
+    ("label_word_search", "String Search", label_word_search, "Full-text word search over labels with typo tolerance"),
+    ("file_name_search", "String Search", file_name_search, "Prefix search over object names (trigram index)"),
     ("happy_frontal_faces", "Expressions", happy_frontal_faces, "Property-vs-property comparison plus abs() inside the database"),
     ("delighted_faces", "Expressions", delighted_faces, "Arithmetic over properties"),
     ("dominant_faces", "Expressions", dominant_faces, "Posters dominated by one confident face"),
     ("sensitive_content", "Expressions", sensitive_content, "Moderation across two detectors' ranks"),
     ("not_yet_enriched", "Expressions", not_yet_enriched, "is_missing as a data-quality check"),
-    ("happy_faces_on_tagged_posters", "Graph traversal", happy_faces_on_tagged_posters, "label -> poster -> faces in one request"),
-    ("label_and_object_together", "Graph traversal", label_and_object_together, "Posters connected to a label AND an object box"),
-    ("objects_between", "Graph traversal", objects_between, "Stored-but-below-cut-off objects, via edge properties (no re-ingest to move the threshold)"),
-    ("crowded_posters", "Graph traversal", crowded_posters, "Many faces and many objects, from stored counts"),
-    ("poster_neighbourhood", "Graph traversal", poster_neighbourhood, "Everything attached to one poster"),
-    ("why_flagged", "Graph traversal", why_flagged, "Flagged posters plus the labels that explain them"),
+    ("happy_faces_on_tagged_posters", "Graph Traversal", happy_faces_on_tagged_posters, "label -> poster -> faces in one request"),
+    ("label_and_object_together", "Graph Traversal", label_and_object_together, "Posters connected to a label AND an object box"),
+    ("objects_between", "Graph Traversal", objects_between, "Stored-but-below-cut-off objects, via edge properties (no re-ingest to move the threshold)"),
+    ("crowded_posters", "Graph Traversal", crowded_posters, "Many faces and many objects, from stored counts"),
+    ("poster_neighbourhood", "Graph Traversal", poster_neighbourhood, "Everything attached to one poster"),
+    ("why_flagged", "Graph Traversal", why_flagged, "Flagged posters plus the labels that explain them"),
     ("overlap_candidates", "Spatial", overlap_candidates, "Posters with both a Logo and a face box"),
 ]
 
 
 LOADER_PAGE = """<!doctype html>
-<html><head><meta charset="utf-8"><title>Load the demo queries into the ApertureDB UI</title>
+<html><head><meta charset="utf-8"><title>Load the Demo Queries into the ApertureDB UI</title>
 <style>body{font:16px sans-serif;max-width:640px;margin:60px auto;line-height:1.5}code{background:#eee;padding:1px 5px}</style>
 </head><body>
-<h2>Demo queries for the ApertureDB UI</h2>
+<h2>Demo Queries for the ApertureDB UI</h2>
 <p id="msg">Loading...</p>
 <script>
 const QUERIES = __QUERIES__;
@@ -402,8 +402,8 @@ const KEY = 'savedQueryCustoms';
 const msg = document.getElementById('msg');
 try {
   const user = localStorage.getItem('username') || 'admin';
-  const names = new Set(QUERIES.map((q) => q.name));
-  const kept = JSON.parse(localStorage.getItem(KEY) || '[]').filter((e) => !(e.userName === user && names.has(e.name)));
+  const names = new Set(QUERIES.map((q) => q.name.toLowerCase()));
+  const kept = JSON.parse(localStorage.getItem(KEY) || '[]').filter((e) => !(e.userName === user && names.has(String(e.name).toLowerCase())));
   const now = new Date().toISOString();
   const added = QUERIES.map((q) => ({id: (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)),
     userName: user, name: q.name, date: now, query: JSON.stringify(q.query, null, 2), isModified: false, isSelected: false}));
@@ -420,8 +420,14 @@ try {
 """
 
 
+_SMALL = {"a", "an", "the", "and", "but", "or", "nor", "for", "so", "yet", "as", "at", "by", "in", "of", "off", "on", "per", "to", "up", "via", "vs"}
+
+
 def ui_name(n, slug):
-    return f"{n:02d} {slug.replace('_', ' ')}"
+    """The name a query has in the web UI's list: its slug in Title Case, numbered."""
+    words = slug.split("_")
+    title = " ".join(w if (i and i < len(words) - 1 and w in _SMALL) else w.capitalize() for i, w in enumerate(words))
+    return f"{n:02d} {title}"
 
 
 
@@ -437,7 +443,7 @@ def export(directory=None, dataset=None):
         (directory / f"{n:02d}_{slug}.json").write_text(json.dumps(query, indent=2) + "\n")
         ui.append({"name": ui_name(n, slug), "query": query})
     (directory / "load-into-ui.html").write_text(LOADER_PAGE.replace("__QUERIES__", json.dumps(ui).replace("</", "<\\/")))
-    index = ["# Queries for the ApertureDB web UI\n",
+    index = ["# Queries for the ApertureDB Web UI\n",
              "Paste any of these JSON files into the UI's query editor "
              "(or run them from `queries.ipynb`).\n",
              "**One click for the local web UI:** with `docker compose --profile ui up -d` running, open "

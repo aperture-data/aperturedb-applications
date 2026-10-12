@@ -1,4 +1,4 @@
-# Google Cloud Storage object enrichments in ApertureDB
+# Google Cloud Storage Object Enrichments in ApertureDB
 
 Google Cloud Storage **object enrichments** run detectors on the images in a bucket (faces, objects, labels,
 content safety) and store the results on each object. (Google's documentation may also call this feature
@@ -13,7 +13,7 @@ query result.
 > adds a CLIP embedding per poster (optional), so the same ask can be answered by similarity alone or by similarity
 > restricted with the detectors' metadata (`demo.ipynb`, `quality.ipynb`; see *Vector search and metadata together*).
 
-## How it fits together
+## How It Fits Together
 
 ![Pipeline: bucket folder and object enrichment detectors, ingest.py and enrich.py, the graph in ApertureDB, and the ways to explore it](images/pipeline.png)
 
@@ -21,7 +21,7 @@ query result.
 ApertureDB; everything on the right of the graph reads only from ApertureDB. The editable source of the diagram
 is [`images/pipeline.html`](images/pipeline.html).
 
-## Quick start
+## Quick Start
 
 You need Python 3.10+, Docker, and read access to a bucket that has object enrichment results.
 
@@ -34,7 +34,7 @@ gcloud auth login               # or: gcloud auth application-default login
 Then explore: `jupyter lab demo.ipynb` (the short version) or `queries.ipynb` (the full tour), or use the notebook
 container (below). Remove `--limit` for the whole folder. ApertureDB **0.19.14 or newer** is required (the compose file pins it).
 
-## Choose your ApertureDB
+## Choose Your ApertureDB
 
 The scripts talk to **any** ApertureDB; which one is decided by a key, nothing else changes.
 
@@ -59,7 +59,7 @@ The Community Edition image is licensed for evaluation and development only
 ([terms](https://www.aperturedata.io/docker-license)). `docker compose down` stops it, `docker compose down -v`
 also deletes the data.
 
-## Choose how data gets in
+## Choose How Data Gets In
 
 | Path | Status | What it does |
 |---|---|---|
@@ -71,7 +71,7 @@ also deletes the data.
 Path A exists to learn the right shape while the detectors are still changing; the parsing lives in one
 file (`parsers.py`) so it can move into C or D later. See *Design choices* below.
 
-## The scripts
+## The Scripts
 
 All are safe to re-run, and each takes `--bucket`, `--prefix`, `--dataset-name` and `--env-file`
 (defaults come from `.env`: `GCS_BUCKET`, `GCS_PREFIX`).
@@ -104,7 +104,7 @@ make it unnecessary.
 */30 * * * *  cd /path/to/gcs-auto-annotate && ./.venv/bin/python ingest.py && ./.venv/bin/python enrich.py
 ```
 
-## Data model
+## Data Model
 
 ```
 _Image ──HasLabel──────▶ GCSLabel           description, score, topicality, knowledge_graph_id
@@ -124,7 +124,7 @@ Likelihood enums also get a numeric `_rank` (1 = very unlikely ... 5 = very like
 range filter. Boxes are native ApertureDB bounding boxes, so commands such as `RegionIoU` work on them directly.
 `dataset_name` (default `<bucket>/<prefix>`) keeps several folders apart in one database.
 
-## What it shows
+## What It Shows
 
 [`demo.ipynb`](demo.ipynb) is the short version: one ask answered by vector search alone and then with the detector metadata; [`quality.ipynb`](quality.ipynb) scores such searches against independent TMDB genres. [`queries.ipynb`](queries.ipynb) walks through these (each with a title and what it shows: what is in the data - labels and
 safety ratings counted with `results.group` -, a headline question, family-friendly filters, string search including typo-tolerant
@@ -141,7 +141,7 @@ http://localhost:8088/load-queries.html once and all of them appear under **Quer
 * **Spatial** - `RegionIoU` between a person box and a face box.
 * **Pixels** - the result can be the cropped faces themselves.
 
-## Vector search and metadata together
+## Vector Search and Metadata Together
 
 Similarity search finds what a poster *looks like*; it cannot tell a smile from a smiley, a cartoon or a gesture, and it knows nothing
 about content ratings. The detector results can. In ApertureDB the two combine in one query: the metadata filter runs *inside* the
@@ -162,7 +162,7 @@ python embed.py --bucket YOUR_BUCKET --prefix YOUR/FOLDER/       # about a secon
 * The embeddings are CLIP ViT-B/16 (512 dimensions, cosine, HNSW). They are identical to what ApertureDB's embeddings workflow
   produces by default, so a set made by that workflow is interchangeable. `vector_search.py` holds the query builders.
 
-## Graph views
+## Graph Views
 
 `graph_viz.py` draws the database as an interactive graph (a rewrite of the helper from aperture-nexus that works
 for any schema).
@@ -182,7 +182,7 @@ so the browser needs internet access.
 
 ![Data model](images/schema_graph.png)
 
-## What the detectors return
+## What the Detectors Return
 
 From a first sample of 20 posters: the object detector returns every proposal it considers (63 per image on
 average, scores from 0.01 up); `enrich.py` stores those scoring at least **0.3** (with their score on the `HasDetection`
@@ -207,7 +207,7 @@ Tests that need a database skip themselves if none is reachable; none of them ne
 * Port already in use - set `APERTUREDB_PORT`, `WEBUI_PORT` or `NOTEBOOK_PORT` in the environment before `docker compose up`.
 * Graph page is blank - the browser could not reach the CDN (`esm.sh`, `cdn.jsdelivr.net`).
 
-## Design choices
+## Design Choices
 
 | Choice | Why |
 |---|---|
@@ -224,7 +224,7 @@ Tests that need a database skip themselves if none is reachable; none of them ne
 | Native bounding boxes | `RegionIoU`, crops and the box overlays in the graph views work without custom geometry. |
 | `graph_viz.py` rewritten from the aperture-nexus helper | The original issued one query per node, assumed an `id` property and `FindEntity`-style classes, and put data into the page unescaped. The new one navigates with batched, capped queries (falling back to per-node queries on servers without `group_by_source` / `per_group`), supports every native type, and knows nothing about this schema. |
 
-## What's coming
+## What's Coming
 
 * **Embeddings from the source:** if the enrichments ever include embeddings, they slot in next to the CLIP ones (or replace them) in the same descriptor set.
 * **Native integration and a GCP-aware workflow** (paths C and D above): point ApertureDB at a bucket and have
