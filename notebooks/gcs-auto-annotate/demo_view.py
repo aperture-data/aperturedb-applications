@@ -53,30 +53,35 @@ def problems(row, checks):
 def _one(row, blob, width, checks):
     faces = row.get("face_count") or 0
     probs = problems(row, checks)
-    note = f'<br><b style="color:#c0392b">{html.escape(", ".join(probs))}</b>' if probs else ""
-    return (f'<figure style="display:inline-block;margin:6px;text-align:center;font:12px sans-serif;vertical-align:top;width:{width}px">'
-            f'<img width="{width}" src="data:{gv.sniff_mime(blob)};base64,{base64.b64encode(blob).decode()}">'
-            f"<figcaption>sim {row['similarity']:.2f} &middot; {faces} face(s){note}</figcaption></figure>")
+    border = "#c0392b" if probs else "transparent"
+    note = f'<div style="color:#c0392b;font-weight:700;font-size:17px">{html.escape(", ".join(probs))}</div>' if probs else ""
+    return (f'<figure style="display:inline-block;margin:6px;text-align:center;font:16px sans-serif;vertical-align:top;width:{width}px">'
+            f'<img width="{width}" style="border:4px solid {border};box-sizing:border-box" src="data:{gv.sniff_mime(blob)};base64,{base64.b64encode(blob).decode()}">'
+            f"<figcaption><span style='color:#555'>{faces} face(s)</span>{note}</figcaption></figure>")
 
 
 def posters(rows, blobs, checks=(), width=170):
     display(HTML("".join(_one(r, b, width, checks) for r, b in zip(rows, blobs)) or "<i>no posters match</i>"))
 
 
-def side_by_side(left, right, exact, checks=(), width=125):
-    """Two result lists next to each other, each with its problem counts and its recall against the exact search."""
+def side_by_side(left, right, exact, checks=(), width=135):
+    """Two result lists next to each other: a red outline marks a poster that misses the ask, with a plain headline per side."""
     columns = []
     for title, (rows, blobs), exact_ids in (("Vector Search Alone", left, exact[0]), ("Vector Search + Metadata", right, exact[1])):
-        counts = {}
+        counts, missed = {}, 0
         for r in rows:
-            for p in problems(r, checks):
+            found = problems(r, checks)
+            missed += bool(found)
+            for p in found:
                 key = p.split(" (")[0] if not p.startswith("only") else "too few people"
                 counts[key] = counts.get(key, 0) + 1
-        names = ["rated POSSIBLE+"] + sorted(k for k in counts if k != "rated POSSIBLE+") if counts or checks else ["rated POSSIBLE+"]
-        parts = [f"<b style='color:{'#c0392b' if counts.get(n) else '#2a7a2a'}'>{counts.get(n, 0)} {n}</b>" for n in names]
+        colour = "#c0392b" if missed else "#2a7a2a"
+        headline = f"{missed} of {len(rows)} miss the ask" if missed else f"All {len(rows)} match the ask"
+        reasons = " &middot; ".join(f"{n} {k}" for k, n in sorted(counts.items())) or "no red flags"
         recall = vs.recall_at_k([r["image_id"] for r in rows], exact_ids)
-        stats = (f"<div style='font:14px sans-serif;margin:6px 0 10px'><b>{len(rows)} results</b> &middot; " + " &middot; ".join(parts)
-                 + f" &middot; recall@{len(exact_ids)} {recall:.0%}</div>")
+        stats = (f"<div style='font:700 32px sans-serif;color:{colour};margin:8px 0 2px'>{headline}</div>"
+                 f"<div style='font:700 20px sans-serif;color:{colour}'>{reasons}</div>"
+                 f"<div style='font:16px sans-serif;color:#666;margin:2px 0 10px'>Index check: recall@{len(exact_ids)} {recall:.0%} against an exact search</div>")
         grid = "".join(_one(r, b, width, checks) for r, b in zip(rows, blobs))
-        columns.append(f"<td style='vertical-align:top;padding:0 14px;width:50%;text-align:left'><div style='font:700 18px sans-serif'>{title}</div>{stats}{grid}</td>")
+        columns.append(f"<td style='vertical-align:top;padding:0 14px;width:50%;text-align:left'><div style='font:700 26px sans-serif'>{title}</div>{stats}{grid}</td>")
     display(HTML("<table style='border-collapse:collapse'><tr>" + "".join(columns) + "</tr></table>"))
