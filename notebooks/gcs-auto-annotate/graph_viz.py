@@ -754,12 +754,32 @@ def neighborhood(client, cls, constraints=None, depth=1, limit=10, per_class=8, 
 def render_neighborhood(client, cls, constraints=None, title=None, filename=None, depth=1, limit=10,
                         per_class=8, sort=None, include=None, exclude=None, max_nodes=200,
                         label_props=None, **render_kwargs):
-    """Start from ``cls`` objects matching ``constraints`` and draw them with their surroundings."""
+    """Start from ``cls`` objects matching ``constraints`` and draw them with their surroundings.
+
+    No details panel is open on load (it covers half of a notebook-sized frame); pass ``select=<node id>`` to open one.
+    """
     nodes, edges, start_ids = neighborhood(client, cls, constraints, depth, limit, per_class, sort, include,
                                            exclude, max_nodes, label_props)
     return render_graph(nodes, [(s, d, c) for s, d, c in edges], title or f"{cls} neighbourhood",
-                        filename or "graphs/neighborhood.html", client=client,
-                        select=start_ids[0] if len(start_ids) == 1 else None, **render_kwargs)
+                        filename or "graphs/neighborhood.html", client=client, **render_kwargs)
+
+
+def _later_refs(commands):
+    """Every ``_ref`` number that the given commands point back to (``ref``, ``image_ref``, ...)."""
+    found = set()
+
+    def walk(x):
+        if isinstance(x, dict):
+            for k, v in x.items():
+                if (k == "ref" or k.endswith("_ref")) and isinstance(v, int):
+                    found.add(v)
+                else:
+                    walk(v)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v)
+    walk(commands)
+    return found
 
 
 def _start_points(client, query, max_start):
@@ -770,6 +790,8 @@ def _start_points(client, query, max_start):
         name, body = next(iter(command.items()))
         if name not in _FIND_TO_CLASS and name != "FindEntity":
             continue
+        if body.get("_ref") in _later_refs(q[i + 1:]):
+            continue  # a step the answer was reached through (e.g. the label of label -> poster), not part of the answer
         results = body.get("results") or {}
         if results.get("count") and not results.get("list") and not results.get("all_properties"):
             continue

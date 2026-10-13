@@ -201,6 +201,7 @@ def test_render_neighborhood_embeds_picture_and_overlays(db, poster, tmp_path):
     assert img["refw"] == W or "refw" not in img                         # set when the picture was shrunk
     crops = [n for n in data["nodes"] if n["cls"] == "_BoundingBox"]
     assert crops and all(n.get("image") for n in crops)
+    assert "const preSelect = null;" in out.read_text()                  # the details panel stays closed: it would cover half the frame
 
 
 def test_render_query_highlights_the_answer(db, poster, tmp_path):
@@ -214,6 +215,19 @@ def test_render_query_highlights_the_answer(db, poster, tmp_path):
     assert {n["cls"] for n in data["nodes"]} == {"_BoundingBox", "_Image"}   # the face box + its poster
     highlighted = json.loads(re.search(r"const preHighlight = (.*?);\n", html).group(1))
     assert len(highlighted) == 1 and highlighted[0] in {n["id"] for n in data["nodes"] if n["cls"] == "_BoundingBox"}
+
+
+def test_render_query_highlights_only_the_end_of_a_chain(db, poster, tmp_path):
+    dataset, image = poster
+    q = [{"FindEntity": {"_ref": 1, "with_class": "GCSLabel", "results": {"list": ["description"]}}},
+         {"FindImage": {"is_connected_to": {"ref": 1}, "blobs": False, "constraints": {"dataset_name": ["==", dataset]},
+                        "results": {"list": ["gcs_object_name"]}}}]      # label -> poster: the poster is the answer
+    out = tmp_path / "c.html"
+    gv.render_query(db, q, filename=str(out), embed=False)
+    html = out.read_text()
+    classes = {n["id"]: n["cls"] for n in graph_data(html)["nodes"]}
+    highlighted = json.loads(re.search(r"const preHighlight = (.*?);\n", html).group(1))
+    assert highlighted and {classes[i] for i in highlighted} == {"_Image"}
 
 
 def test_render_query_rejects_an_empty_answer(db, tmp_path):
