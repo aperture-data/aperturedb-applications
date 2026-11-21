@@ -14,7 +14,7 @@ Develop and pull request builds validate the image without publishing it.
 
 ## Server compatibility
 
-These examples require ApertureDB server 1.0 and Python SDK `aperturedb>=1.0.1,<2`.
+These examples require ApertureDB server 1.0 and Python SDK `aperturedb>=1.0.2,<2`.
 Media additions use explicit application classes. Descriptor search spaces use
 descriptor classes with native vector indexes.
 
