@@ -14,8 +14,8 @@ Develop and pull request builds validate the image without publishing it.
 
 ## Server compatibility
 
-Release 0.2.3 updates the four semantic search notebooks to install Python SDK
-`aperturedb>=1.0.2,<2` for ApertureDB server 1.0.
+The semantic search notebooks install `aperturedb[langchain]>=1.0.3,<2` from PyPI
+for use with ApertureDB server 1.0.
 Media additions use explicit application classes. Descriptor search spaces use
 descriptor classes with native vector indexes.
 
