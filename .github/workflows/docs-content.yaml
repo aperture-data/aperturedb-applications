@@ -61,9 +61,8 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.PAT_INFRA }}
-          DEPLOY_ENV: develop
           IMAGE_TAG: ${{ steps.version.outputs.tag }}
         run: |
-          jq -n --arg tag "$IMAGE_TAG" --arg environment "$DEPLOY_ENV" \
-            '{event_type:"update-tag",client_payload:{environment:$environment,component:"applications",tag:$tag}}' \
+          jq -n --arg tag "$IMAGE_TAG" \
+            '{event_type:"update-tag",client_payload:{component:"aperturedb-applications",tag:$tag}}' \
             | gh api repos/aperture-data/infra/dispatches --input -
